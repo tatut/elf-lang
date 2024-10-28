@@ -3,8 +3,6 @@
 :- use_module(library(yall)).
 :- set_prolog_flag(double_quotes, codes).
 
-digit(N) --> [Ch], { N is Ch - 48, between(0,9,N) }.
-
 ws --> "#", string_without("\n", _), ws.
 ws --> [W], { code_type(W, space) }, ws.
 ws --> [].
@@ -37,13 +35,25 @@ walk(method(_,Args), Item) :- walk(Args, Item).
 walk(fun(_, Statements), Item) :- walk(Statements, Item).
 walk(Item, Item).
 
-
 expr(A) --> value(A); symbol(A); arg_(A); lst(A); mref(A); prev(A).
+op_(*) --> "*".
+op_(/) --> "/".
+op_(+) --> "+".
+op_(-) --> "-".
+op_(>) --> ">".
+op_(<) --> "<".
+op_(=) --> "=".
+op_('%') --> "%".
+
+
 stmt(stmt(Target,Methods)) -->
     expr(Target),
     methods(Methods).
 stmt(assign(Name, Value)) -->
     expr(Value), ws, "->", ws, csym(Name).
+stmt(op(Left,Op,Right)) --> stmt_left(Left), ws, op_(Op), ws, stmt(Right), ws.
+stmt_left(S) --> "(", ws, stmt(S), ws, ")".
+stmt_left(S) --> stmt(S).
 
 stmts([St|Stmts]) --> ws, stmt(St), ws, more_stmts(Stmts).
 more_stmts([]) --> "."; eos.
@@ -96,6 +106,20 @@ eval(list([H|T]), [Hv|Tvs]) -->
     eval(list(T), Tvs).
 eval(mref(Name), mref(Name)) --> [].
 eval(prevval, Val) --> state(ctx(_,_,Val)).
+eval(op(Left,Op,Right), Val) -->
+    eval(Left, Lv),
+    eval(Right, Rv),
+    { eval_op(Lv,Op,Rv, Val) }.
+
+eval_op(L,+,R,V) :- V is L + R.
+eval_op(L,-,R,V) :- V is L - R.
+eval_op(L,*,R,V) :- V is L * R.
+eval_op(L,/,R,V) :- V is L / R.
+eval_op(L,>,R,false) :- L =< R.
+eval_op(L,>,R,true) :- L > R.
+eval_op(L,<,R,false) :- L >= R.
+eval_op(L,<,R,true) :- L < R.
+eval_op(L,'%',R,V) :- V is L mod R.
 
 eval_methods(In, [], In) --> [].
 eval_methods(In, [M|Methods], Out) -->
@@ -150,6 +174,7 @@ method(sum, Lst, [], Result) -->
     { sum_list(Lst, Result) },
     [].
 
+% add all methods here
 method(keep/1).
 method(print/0).
 method(digit/0).
@@ -168,6 +193,7 @@ run(File) :-
 
 run_codes(Input, Out) :-
     phrase(stmts(Stmts), Input),
+    writeln(got(Stmts)),
     phrase(eval_stmts(nil,Stmts,Out), [ctx(env{},[],nil)], _).
 
 
@@ -176,9 +202,10 @@ run_codes(Input, Out) :-
 
 prg("\"jas6sn0\" -> foo, _ keep(&digit).", [6,0]).
 prg("[4 2 0 6 9] sum", 21).
-
-test(programs, [forall(prg(Source,Result))]) :-
-    run_codes(Source,Result).
+prg("[6 2] sum * 4", 32).
+test(programs, [forall(prg(Source,Expected))]) :-
+    once(run_codes(Source,Actual)),
+    Expected = Actual.
 
 
 :- end_tests(elf).
