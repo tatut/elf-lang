@@ -173,6 +173,15 @@ method(print, Me, _, Me) -->
 method(sum, Lst, [], Result) -->
     { sum_list(Lst, Result) },
     [].
+method(first, [H|_], [], H) --> [].
+method(last, Lst, [], Last) --> [], { last(Lst, Last) }.
+method(nth, Lst, [N], Nth) --> [], { nth0(N, Lst, Nth) }.
+method(lines, File, [], Lines) -->
+    [],
+    { atom_codes(F, File),
+     read_file_to_string(F, Str,[]),
+     string_lines(Str, LinesStr),
+     maplist(string_codes, LinesStr, Lines) }.
 
 % add all methods here
 method(keep/1).
@@ -180,6 +189,10 @@ method(print/0).
 method(digit/0).
 method(map/1).
 method(sum/0).
+method(first/0).
+method(last/0).
+method(nth/0).
+method(lines/0).
 
 falsy(nil).
 falsy(false).
@@ -203,6 +216,8 @@ run_codes(Input, Out) :-
 prg("\"jas6sn0\" -> foo, _ keep(&digit).", [6,0]).
 prg("[4 2 0 6 9] sum", 21).
 prg("[6 2] sum * 4", 32).
+prg("\"README.md\" lines first", "# Elf Helper programming language").
+
 test(programs, [forall(prg(Source,Expected))]) :-
     once(run_codes(Source,Actual)),
     Expected = Actual.
