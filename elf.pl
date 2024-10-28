@@ -19,7 +19,7 @@ arg_(arg(1)) --> "$".
 arg_(arg(N)) --> "$", integer(N).
 prev(prevval) --> "_".
 mref(mref(Name)) --> "&", csym(Name).
-fun(fun(Arity, Statements)) --> "\\", ws, stmts(Statements),
+fun(fun(Arity, Statements)) --> "\\", stmts(Statements),
                                 { walk(Statements, arg(Arity)) -> true; Arity = 0}.
 lst(list(Items)) --> "[", lst_items(Items), ws, "]".
 lst_items([]) --> [].
@@ -33,9 +33,10 @@ walk(stmt(_, Methods), Item) :- walk(Methods, Item).
 walk(method(Item,_Args), Item).
 walk(method(_,Args), Item) :- walk(Args, Item).
 walk(fun(_, Statements), Item) :- walk(Statements, Item).
+walk(op(Left,_Op,Right), Item) :- walk(Left,Item); walk(Right,Item).
 walk(Item, Item).
 
-expr(A) --> value(A); symbol(A); arg_(A); lst(A); mref(A); prev(A).
+expr(A) --> value(A); symbol(A); arg_(A); lst(A); mref(A); prev(A); fun(A).
 op_(*) --> "*".
 op_(/) --> "/".
 op_(+) --> "+".
@@ -110,6 +111,7 @@ eval(op(Left,Op,Right), Val) -->
     eval(Left, Lv),
     eval(Right, Rv),
     { eval_op(Lv,Op,Rv, Val) }.
+eval(fun(A,S), fun(A,S)) --> [].
 
 eval_op(L,+,R,V) :- V is L + R.
 eval_op(L,-,R,V) :- V is L - R.
@@ -134,8 +136,8 @@ eval_all([],[]) --> [].
 eval_all([In|Ins], [Out|Outs]) --> eval(In, Out), eval_all(Ins,Outs).
 
 eval_call(fun(Arity, Stmts), Args, Result) -->
-    { length(Args, ArgC),
-      Arity = ArgC -> true; throw(wrong_arity(expected(Arity),args(ArgC))) },
+    { writeln(call_fn_ars(Arity,Stmts,Args)), length(Args, ArgC),
+      (Arity = ArgC) -> true; throw(wrong_arity(expected(Arity),args(ArgC))) },
     eval_all(Args, ArgVals),
     push_env,
     state(ctx(Env,_), ctx(Env, ArgVals)),
@@ -150,9 +152,9 @@ eval_call(mref(Name), [Me|Args], Result) -->
 eval_stmts(Result,[],Result) --> [].
 eval_stmts(Prev, [Stmt|Stmts], Result) -->
     setprev(Prev),
-    %{ writeln(evaling(Stmt, prev(Prev))) },
+    { writeln(evaling(Stmt, prev(Prev))) },
     eval(Stmt, Intermediate),
-    %{ writeln(intermed(Intermediate)) },
+    { writeln(intermed(Intermediate)) },
     eval_stmts(Intermediate, Stmts, Result).
 
 method(keep, [], [_], []) --> [].
@@ -200,12 +202,12 @@ falsy(false).
 %% Top level runner interface
 
 run(File) :-
-    phrase_from_file(stmts(Stmts), File),
+    once(phrase_from_file(stmts(Stmts), File)),
     %writeln(got(Stmts)),
     phrase(eval_stmts(nil,Stmts,_Res), [ctx(env{},[],nil)], _).
 
 run_codes(Input, Out) :-
-    phrase(stmts(Stmts), Input),
+    once(phrase(stmts(Stmts), Input)),
     writeln(got(Stmts)),
     phrase(eval_stmts(nil,Stmts,Out), [ctx(env{},[],nil)], _).
 
@@ -217,6 +219,7 @@ prg("\"jas6sn0\" -> foo, _ keep(&digit).", [6,0]).
 prg("[4 2 0 6 9] sum", 21).
 prg("[6 2] sum * 4", 32).
 prg("\"README.md\" lines first", "# Elf Helper programming language").
+prg("[1 2 3 4] map(\\ $ * 2.)", [2, 4, 6, 8]).
 
 test(programs, [forall(prg(Source,Expected))]) :-
     once(run_codes(Source,Actual)),
