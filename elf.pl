@@ -45,7 +45,7 @@ stmt(stmt(Target,Methods)) -->
 stmt(assign(Name, Value)) -->
     expr(Value), ws, "->", ws, csym(Name).
 
-stmts([St|Stmts]) --> stmt(St), ws, more_stmts(Stmts).
+stmts([St|Stmts]) --> ws, stmt(St), ws, more_stmts(Stmts).
 more_stmts([]) --> "."; eos.
 more_stmts([St|Stmts]) --> ",", ws, stmt(St), more_stmts(Stmts).
 
@@ -120,9 +120,8 @@ eval_call(fun(Arity, Stmts), Args, Result) -->
 
 eval_call(mref(Name), [Me|Args], Result) -->
     { length(Args, ArgC),
-      \+ method(Name/Argc) -> throw(no_such_method_error(name(Name),arity(ArgC))) },
-    method(Name, Me, Args, Result),
-    { writeln(res(Result)) }.
+      method(Name/Argc) -> true; throw(no_such_method_error(name(Name),arity(ArgC))) },
+    method(Name, Me, Args, Result).
 
 eval_stmts(Result,[],Result) --> [].
 eval_stmts(Prev, [Stmt|Stmts], Result) -->
@@ -164,7 +163,7 @@ falsy(false).
 
 run(File) :-
     phrase_from_file(stmts(Stmts), File),
-    writeln(got(Stmts)),
+    %writeln(got(Stmts)),
     phrase(eval_stmts(nil,Stmts,_Res), [ctx(env{},[],nil)], _).
 
 run_codes(Input, Out) :-
