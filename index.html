@@ -8,7 +8,6 @@
 
     <style>
 
-      // from https://cssloaders.github.io
       .loader {
           width: 48px;
           height: 48px;
@@ -53,7 +52,7 @@
           })();
 
           let code = document.getElementById("code");
-
+          code.value = localStorage.getItem("elfcode") || "# hello elf helper\n\"Hello World!\" print";
           var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
               lineNumbers: true,
               autoCLoseBrackets: true,
@@ -70,7 +69,7 @@
           let code = editor.getDoc().getValue();
           let loader = document.getElementById('loader');
           loader.style.visibility='';
-          localStorage.setItem("paintoy", code);
+          localStorage.setItem("elfcode", code);
           document.getElementById("log").innerHTML = ""; // clear log
           for(let r of Prolog.query("elf:run_string_pretty(Str, Result)", {Str: code})) {
               console.log(r.Result);
@@ -98,6 +97,10 @@
     </div>
 
     <div id="result"></div>
-    <div id="log"></div>
+    <details open>
+      <summary>Printed output</summary>
+      <div id="log"></div>
+    </details>
+
   </body>
 </html>
