@@ -60,7 +60,7 @@ stmt(stmt(Target,Methods)) -->
     expr(Target),
     methods(Methods).
 stmt(assign(Name, Value)) -->
-    expr(Value), ws, "->", ws, csym(Name).
+    csym(Name), ":", ws, stmt(Value).
 stmt(op(Left,Op,Right)) --> stmt_left(Left), ws, op_(Op), ws, stmt(Right), ws.
 stmt_left(S) --> "(", ws, stmt(S), ws, ")".
 stmt_left(S) --> stmt(S).
@@ -134,6 +134,8 @@ eval_op(L,>,R,true) :- L > R.
 eval_op(L,<,R,false) :- L >= R.
 eval_op(L,<,R,true) :- L < R.
 eval_op(L,'%',R,V) :- V is L mod R.
+eval_op(X,'=',X,true).
+eval_op(L,'=',R,false) :- dif(L,R).
 
 eval_methods(In, [], In) --> [].
 eval_methods(In, [M|Methods], Out) -->
@@ -180,13 +182,22 @@ method(map, [], _, []) --> [].
 method(map, [H|T], [Fn], [Hv|Tvs]) -->
     eval_call(Fn, [H], Hv),
     method(map, T, [Fn], Tvs).
+method(do, [], _, nil) --> [].
+method(do, [H|T], [Fn], nil) -->
+    eval_call(Fn, [H], _),
+    method(do, T, [Fn], nil).
+method(filter, [], _, []) --> [].
+method(filter, [H|T], [Fn], Result) -->
+    eval_call(Fn, [H], Include),
+    method(filter, T, [Fn], Rest),
+    { \+ falsy(Include) -> Result=[H|Rest]; Result=Rest }.
 
 % Any pure Prolog method, that doesn't need DCG evaluation context
 method(Method, Me, Args, Result) --> [], { method(Method, Me, Args, Result) }.
 
 method(digit, N, [], nil) :- \+ between(48, 57, N).
 method(digit, N, [], D) :- between(48,57,N), D is N - 48.
-method(print, Me, _, Me) :- debug(Me).
+method(print, Me, _, Me) :- fmt:pretty(Me).
 method(sum, Lst, [], Result) :- sum_list(Lst, Result).
 method(first, [H|_], [], H).
 method(last, Lst, [], Last) :- last(Lst, Last).
@@ -204,7 +215,12 @@ method(to, From, [To, _], []) :- From > To.
 method(to, From, [To, Inc], [From|Rest]) :- From1 is From + Inc, method(to, From1, [To, Inc], Rest).
 method(fmt, PatternCs, Args, Out) :-
     fmt:fmt(PatternCs, Args, Out).
-
+method(join, Lst, [Sep], Out) :-
+    foldl({Sep}/[Item,Acc,Out]>>append([Acc, Sep, Item], Out),
+          Lst, [], Intermediate),
+    % Remove the separator before first element
+    writeln(int(Intermediate)),
+    append(Sep, Out, Intermediate).
 % add all methods here
 method(keep/1).
 method(print/0).
@@ -219,6 +235,8 @@ method(heads/0).
 method(reverse/0).
 method(to/1).
 method(to/2).
+method(filter/1).
+method(join/1).
 
 falsy(nil).
 falsy(false).
@@ -250,11 +268,11 @@ run_string_pretty(Input, Out) :-
 :- begin_tests(elf).
 :- set_prolog_flag(double_quotes, codes).
 
-prg("\"jas6sn0\" -> foo, _ keep(&digit).", [6,0]).
+prg("foo: \"jas6sn0\", foo keep(&digit).", [6,0]).
 prg("[4 2 0 6 9] sum", 21).
 prg("[6 2] sum * 4", 32).
 prg("\"README.md\" lines first", "# Elf Helper programming language").
-prg("[1 2 3 4] map(\\ $  2.)", [2, 4, 6, 8]).
+prg("[1 2 3 4] map(\\ $ * 2.)", [2, 4, 6, 8]).
 prg("[1 2 3 4] heads", [[1,2,3,4],[2,3,4],[3,4],[4]]).
 prg("\"elf\" reverse", "fle").
 prg("\"some4digt02here\" keep(&digit), (_ first * 10) + _ last", 42).
@@ -262,7 +280,8 @@ prg("1 to(5) reverse", [5,4,3,2,1]).
 prg("42 to(69 7)", [42,49,56,63]).
 prg("\"%s day with %d%% chance of rain\" fmt(\"sunny\" 7)",
     "sunny day with 7% chance of rain").
-
+prg("[\"foo\" \"bar\" \"baz\"] join(\" and \")",
+    "foo and bar and baz").
 test(programs, [forall(prg(Source,Expected))]) :-
     once(run_codes(Source,Actual)),
     Expected = Actual.
