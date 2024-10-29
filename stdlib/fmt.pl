@@ -30,7 +30,7 @@ fmt_([Spec|_], []) :-
     spec(Spec),
     throw(too_few_arguments_to_fmt).
 
-printable(N) :- between(32, 126, N).
+printable(N) :- integer(N), between(32, 126, N).
 
-pretty(X) :- is_list(X), maplist(printable, X), string_codes(Str, X), write(Str), !.
-pretty(X) :- write(X).
+pretty(X) :- is_list(X), maplist(printable, X), string_codes(Str, X), writeln(Str), !.
+pretty(X) :- writeln(X).
