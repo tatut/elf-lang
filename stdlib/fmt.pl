@@ -4,7 +4,6 @@
 fmt(PatternCs, Args, Out) :-
     string_codes(Pattern, PatternCs),
     re_split('%(s|d|%)', Pattern, Splits),
-    writeln(splits(Splits)),
     with_output_to_codes(fmt_(Splits,Args), Out).
 
 spec("%s").
@@ -30,3 +29,8 @@ fmt_([Str|Patterns], Args) :-
 fmt_([Spec|_], []) :-
     spec(Spec),
     throw(too_few_arguments_to_fmt).
+
+printable(N) :- between(32, 126, N).
+
+pretty(X) :- is_list(X), maplist(printable, X), string_codes(Str, X), write(Str), !.
+pretty(X) :- write(X).

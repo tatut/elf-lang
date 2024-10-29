@@ -1,8 +1,13 @@
-:- module(elf, [run/1, run_codes/2]).
+:- module(elf, [run/1, run_codes/2, run_string/2, run_string_pretty/2]).
 :- use_module(library(dcg/basics)).
 :- use_module(library(yall)).
 :- use_module(stdlib/fmt).
 :- set_prolog_flag(double_quotes, codes).
+:- set_prolog_flag(elf_debug, false).
+
+debug(Term) :- current_prolog_flag(elf_debug, D), debug(D, Term).
+debug(false, _).
+debug(true, T) :- writeln(T).
 
 ws --> "#", string_without("\n", _), ws.
 ws --> [W], { code_type(W, space) }, ws.
@@ -70,7 +75,7 @@ method(method(Sym,[])) --> symbol(Sym).
 method(method(Sym,Arguments)) --> symbol(Sym), "(", method_args(Arguments), ")".
 
 method_args([Arg|Args]) --> stmt(Arg), more_method_args(Args).
-more_method_args([]) --> [].
+more_method_args([]) --> ws, [].
 more_method_args([Arg|Args]) --> ws1, stmt(Arg), more_method_args(Args).
 
 
@@ -91,7 +96,7 @@ push_env, [S, Env] --> [S], { S = ctx(Env,_,_) }.
 pop_env, [ctx(EnvSaved,[],nil)] --> [ctx(_,_,_), EnvSaved].
 setprev(P) --> state(ctx(E,A,_), ctx(E,A,P)).
 setargs(A) --> state(ctx(E,_,P), ctx(E,A,P)).
-dumpstate --> state(S), {writeln(state(S))}.
+dumpstate --> state(S), {debug(state(S))}.
 
 fail_nil(X) :- dif(X, nil).
 
@@ -140,17 +145,17 @@ eval_method(In, method(Name, Args), Out) -->
     method(Name, In, ArgValues, Out).
 
 eval_all([],[]) --> [].
-eval_all([In|Ins], [Out|Outs]) --> eval(In, Out), {writeln(arg(In,Out))}, eval_all(Ins,Outs).
+eval_all([In|Ins], [Out|Outs]) --> eval(In, Out), {debug(arg(In,Out))}, eval_all(Ins,Outs).
 
 eval_call(fun(Arity, Stmts), Args, Result) -->
-    { writeln(call_fn_ars(Arity,Stmts,Args)), length(Args, ArgC),
+    { debug(call_fn_ars(Arity,Stmts,Args)), length(Args, ArgC),
       (Arity = ArgC) -> true; throw(wrong_arity(expected(Arity),args(ArgC))) },
-    %eval_all(Args, ArgVals),{writeln(argvals(ArgVals))},
+    %eval_all(Args, ArgVals),{debug(argvals(ArgVals))},
     %^fixme: already evaled
     push_env,
     setargs(Args),
     dumpstate,
-    eval_stmts(nil, Stmts, Result), {writeln(fn_result(Result))},
+    eval_stmts(nil, Stmts, Result), {debug(fn_result(Result))},
     pop_env.
 
 eval_call(mref(Name), [Me|Args], Result) -->
@@ -161,9 +166,9 @@ eval_call(mref(Name), [Me|Args], Result) -->
 eval_stmts(Result,[],Result) --> [].
 eval_stmts(Prev, [Stmt|Stmts], Result) -->
     setprev(Prev),
-    { writeln(evaling(Stmt, prev(Prev))) },
+    { debug(evaling(Stmt, prev(Prev))) },
     eval(Stmt, Intermediate),
-    { writeln(intermed(Intermediate)) },
+    { debug(intermed(Intermediate)) },
     eval_stmts(Intermediate, Stmts, Result).
 
 method(keep, [], [_], []) --> [].
@@ -181,7 +186,7 @@ method(Method, Me, Args, Result) --> [], { method(Method, Me, Args, Result) }.
 
 method(digit, N, [], nil) :- \+ between(48, 57, N).
 method(digit, N, [], D) :- between(48,57,N), D is N - 48.
-method(print, Me, _, Me) :- writeln(Me).
+method(print, Me, _, Me) :- debug(Me).
 method(sum, Lst, [], Result) :- sum_list(Lst, Result).
 method(first, [H|_], [], H).
 method(last, Lst, [], Last) :- last(Lst, Last).
@@ -222,13 +227,24 @@ falsy(false).
 
 run(File) :-
     once(phrase_from_file(stmts(Stmts), File)),
-    %writeln(got(Stmts)),
+    %debug(got(Stmts)),
     phrase(eval_stmts(nil,Stmts,_Res), [ctx(env{},[],nil)], _).
 
 run_codes(Input, Out) :-
     once(phrase(stmts(Stmts), Input)),
-    writeln(got(Stmts)),
+    debug(got(Stmts)),
     phrase(eval_stmts(nil,Stmts,Out), [ctx(env{},[],nil)], _).
+
+run_string(Input, Out) :-
+    string_codes(Input, Codes),
+    run_codes(Codes, Out).
+
+run_string_pretty(Input, Out) :-
+    catch((run_string(Input, Result),
+           with_output_to(string(Out),
+                          fmt:pretty(Result))),
+          Err,
+          Out = naughty(Err)).
 
 
 :- begin_tests(elf).
@@ -238,7 +254,7 @@ prg("\"jas6sn0\" -> foo, _ keep(&digit).", [6,0]).
 prg("[4 2 0 6 9] sum", 21).
 prg("[6 2] sum * 4", 32).
 prg("\"README.md\" lines first", "# Elf Helper programming language").
-prg("[1 2 3 4] map(\\ $ * 2.)", [2, 4, 6, 8]).
+prg("[1 2 3 4] map(\\ $  2.)", [2, 4, 6, 8]).
 prg("[1 2 3 4] heads", [[1,2,3,4],[2,3,4],[3,4],[4]]).
 prg("\"elf\" reverse", "fle").
 prg("\"some4digt02here\" keep(&digit), (_ first * 10) + _ last", 42).
