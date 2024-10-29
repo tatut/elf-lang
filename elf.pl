@@ -221,6 +221,12 @@ method(join, Lst, [Sep], Out) :-
     % Remove the separator before first element
     writeln(int(Intermediate)),
     append(Sep, Out, Intermediate).
+method(split, Lst, [Sep], Result) :-
+    once(append([Start, Sep, Rest], Lst))
+    -> (split(Rest, Sep, RestSplit),
+        Result=[Start|RestSplit])
+    ; Result=Lst.
+
 % add all methods here
 method(keep/1).
 method(print/0).
@@ -237,6 +243,7 @@ method(to/1).
 method(to/2).
 method(filter/1).
 method(join/1).
+method(split/1).
 
 falsy(nil).
 falsy(false).
@@ -282,6 +289,8 @@ prg("\"%s day with %d%% chance of rain\" fmt(\"sunny\" 7)",
     "sunny day with 7% chance of rain").
 prg("[\"foo\" \"bar\" \"baz\"] join(\" and \")",
     "foo and bar and baz").
+prg("\"foo, quux, !\" split(", ")",
+    ["foo", "quux", "!"]).
 test(programs, [forall(prg(Source,Expected))]) :-
     once(run_codes(Source,Actual)),
     Expected = Actual.
