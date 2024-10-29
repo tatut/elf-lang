@@ -1,0 +1,103 @@
+<!DOCTYPE>
+<html>
+  <head>
+
+    <script src="https://SWI-Prolog.github.io/npm-swipl-wasm/4/0/10/index.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.63.1/codemirror.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.63.1/codemirror.min.css"></link>
+
+    <style>
+
+      // from https://cssloaders.github.io
+      .loader {
+          width: 48px;
+          height: 48px;
+          border: 5px solid #FFF;
+          border-bottom-color: transparent;
+          border-radius: 50%;
+          display: inline-block;
+          box-sizing: border-box;
+          animation: rotation 1s linear infinite;
+      }
+
+      @keyframes rotation {
+          0% {
+              transform: rotate(0deg);
+          }
+          100% {
+              transform: rotate(360deg);
+          }
+      }
+    </style>
+
+    <script>
+      function initCode() {
+          (async () => {
+              const swipl = await SWIPL({on_output: log, arguments: ["-q"]});
+              window.Prolog = swipl.prolog;
+              swipl.prolog.consult("elf","examples")
+                  .then((ok,err) => {
+                      let opts = document.getElementById("examples");
+                      opts.onchange = _=>{
+                          console.log("code: ", opts.value);
+                          let code = Prolog.query(
+                              "examples:ex(N,Code)",
+                              {N: new Prolog.String(opts.value)}).once().Code.v;
+                          editor.getDoc().setValue(code);
+                      };
+                      for(let r of Prolog.query("examples:ex(N,_)")) {
+                          console.log(r.N);
+                          opts.add(new Option(r.N.v, r.N.v));
+                      }
+                  });
+          })();
+
+          let code = document.getElementById("code");
+
+          var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
+              lineNumbers: true,
+              autoCLoseBrackets: true,
+              matchBrackets: true
+          });
+
+          window.editor = editor;
+      }
+
+      window._FRAME=0;
+
+      function run() {
+          document.getElementById('result').innerHTML = "";
+          let code = editor.getDoc().getValue();
+          let loader = document.getElementById('loader');
+          loader.style.visibility='';
+          localStorage.setItem("paintoy", code);
+          document.getElementById("log").innerHTML = ""; // clear log
+          for(let r of Prolog.query("elf:run_string_pretty(Str, Result)", {Str: code})) {
+              console.log(r.Result);
+              document.getElementById('result').innerHTML = r.Result;
+          }
+          loader.style.display='hidden';
+
+      }
+
+      function log(msg) {
+          document.getElementById("log").innerHTML += `<div>${msg}</div>`;
+      }
+
+    </script>
+
+  </head>
+  <body onload="initCode()">
+    <select id="examples" title="Examples">
+      <option value="">-- select example --</option>
+    </select>
+    <textarea id="code">[1 2 4] sum</textarea>
+    <div>
+      <button onclick="run()">run</button>
+      <span class="loader" id="loader" style="visibility: hidden;"></span>
+    </div>
+
+    <div id="result"></div>
+    <div id="log"></div>
+  </body>
+</html>
