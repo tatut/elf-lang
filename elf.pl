@@ -17,6 +17,11 @@ ws --> [].
 ws1 --> [W], { !, code_type(W, space) }, ws.
 ws1 --> ws, [W], { !, code_type(W, space) }.
 
+%% toplevel
+%% statements (list of expressions)
+%% assignment "<name>: <stmt>"
+%% parenthes "(" <statements> ")"
+
 value(val(N)) --> number(N).
 value(val(S)) --> "\"", string_without("\"", S), "\"".
 value(val(Ch)) --> "@", [Ch].
@@ -28,11 +33,58 @@ arg_(arg(1)) --> "$".
 arg_(arg(N)) --> "$", integer(N).
 prev(prevval) --> "_".
 mref(mref(Name)) --> "&", csym(Name).
-fun(fun(Arity, Statements)) --> "\\", stmts(Statements),
-                                { walk(Statements, arg(Arity)) -> true; Arity = 0}.
+mcall(mcall(Name, Args)) --> symbol(Name), "(", ws, mcall_args(Args), ")".
+assign(assign(Name, Expr)) --> symbol(Name), ":", ws, exprt(Expr,",").
+mcall_args([A|Args]) --> exprt(A, ",)"), ws, more_mcall_args(Args).
+more_mcall_args([]) --> [].
+more_mcall_args(Args) --> ",", ws, mcall_args(Args).
+
+
+fun(fun(Arity, Statements)) --> "\\", statements(Statements),
+                                { %walk(Statements, arg(Arity)) -> true; Arity = 0
+                                    Arity = 0 % fixme
+                                }.
 lst(list(Items)) --> "[", lst_items(Items), ws, "]".
 lst_items([]) --> [].
 lst_items([I|Items]) --> ws, expr(I),lst_items(Items).
+op_(op(*)) --> "*".
+op_(op(/)) --> "/".
+op_(op(+)) --> "+".
+op_(op(-)) --> "-".
+op_(op(>)) --> ">".
+op_(op(<)) --> "<".
+op_(op(=)) --> "=".
+op_(op('%')) --> "%".
+op_(op('++')) --> "++". % append lists
+
+% check end, but don't consume it
+end(End), [Ch] --> [Ch], { memberchk(Ch, End) }.
+end(_) --> ws, eos. % whitespace at the end also closes statements
+
+expr(A) --> value(A); symbol(A); arg_(A); lst(A); mref(A); prev(A); fun(A); op_(A); mcall(A); assign(A).
+expr(sub(S)) --> "(", exprt(S, ")"), ")".
+
+exprs([],End) --> end(End).
+exprs([E|Exprs], End) -->
+    expr(E), more_exprs(Exprs,End).
+more_exprs([], End) --> ws, end(End).
+more_exprs(Exprs,End) --> ws1, exprs(Exprs,End).
+
+% Take expression parts and turn it into execution tree
+exprt(E, End) --> ws, exprs(Es, End), { exprs_tree(Es, E) }.
+exprs_tree(Lst, op(Left, Op, Right)) :-
+    % Split by binary ops
+    once(append([Before, [op(Op)], After], Lst)),
+    exprs_tree(Before, Left),
+    exprs_tree(After, Right).
+exprs_tree(Lst, Lst) :- \+ memberchk(op(_), Lst).
+
+statements([Expr|Stmts]) -->
+    ws, exprt(Expr, ",."),
+    more_statements(Stmts).
+more_statements([]) --> "."; eos.
+more_statements(Stmts) --> ",", statements(Stmts).
+
 
 %% Walk statements, find items
 walk([First|_], Item) :- walk(First, Item).
@@ -45,38 +97,7 @@ walk(fun(_, Statements), Item) :- walk(Statements, Item).
 walk(op(Left,_Op,Right), Item) :- walk(Left,Item); walk(Right,Item).
 walk(Item, Item).
 
-expr(A) --> value(A); symbol(A); arg_(A); lst(A); mref(A); prev(A); fun(A).
-op_(*) --> "*".
-op_(/) --> "/".
-op_(+) --> "+".
-op_(-) --> "-".
-op_(>) --> ">".
-op_(<) --> "<".
-op_(=) --> "=".
-op_('%') --> "%".
 
-
-stmt(stmt(Target,Methods)) -->
-    expr(Target),
-    methods(Methods).
-stmt(assign(Name, Value)) -->
-    csym(Name), ":", ws, stmt(Value).
-stmt(op(Left,Op,Right)) --> stmt_left(Left), ws, op_(Op), ws, stmt(Right), ws.
-stmt_left(S) --> "(", ws, stmt(S), ws, ")".
-stmt_left(S) --> stmt(S).
-
-stmts([St|Stmts]) --> ws, stmt(St), ws, more_stmts(Stmts).
-more_stmts([]) --> "."; eos.
-more_stmts([St|Stmts]) --> ",", ws, stmt(St), more_stmts(Stmts).
-
-methods([]) --> [].
-methods([M|Ms]) --> ws1, method(M), methods(Ms).
-method(method(Sym,[])) --> symbol(Sym).
-method(method(Sym,Arguments)) --> symbol(Sym), "(", method_args(Arguments), ")".
-
-method_args([Arg|Args]) --> stmt(Arg), more_method_args(Args).
-more_method_args([]) --> ws, [].
-more_method_args([Arg|Args]) --> ws1, stmt(Arg), more_method_args(Args).
 
 % Functions and method references are callable
 is_callable(fun(_,_)).
@@ -103,10 +124,9 @@ dumpstate --> state(S), {debug(state(S))}.
 
 fail_nil(X) :- dif(X, nil).
 
-eval(stmt(Expr, []), Val) --> eval(Expr, Val).
-eval(stmt(Expr, [M|Methods]), Val) -->
-    eval(Expr, In),
-    eval_methods(In, [M|Methods], Val).
+eval([Expr|Methods], Out) --> eval(Expr, Val), eval_methods(Val, Methods, Out).
+
+eval(sub(Expr), Out) --> eval(Expr, Out).
 eval(Sym, Val) --> { atom(Sym) },
                    state(ctx(Env,_,_)),
                    { get_dict(Sym, Env, Val) }.
@@ -139,24 +159,28 @@ eval_op(L,<,R,true) :- L < R.
 eval_op(L,'%',R,V) :- V is L mod R.
 eval_op(X,'=',X,true).
 eval_op(L,'=',R,false) :- dif(L,R).
+eval_op(L,'++',R,Append) :- is_list(L), is_list(R), append(L,R,Append).
+eval_op(L,'++',R,[L|R]) :- \+ is_list(L), is_list(R).
+eval_op(L,'++',R,Append) :- is_list(L), \+ is_list(R), append(L,[R],Append).
 
 eval_methods(In, [], In) --> [].
 eval_methods(In, [M|Methods], Out) -->
     eval_method(In, M, Intermediate),
     eval_methods(Intermediate, Methods, Out).
 
-eval_method(In, method(Name, Args), Out) -->
+eval_method(In, mcall(Name, Args), Out) -->
     eval_all(Args, ArgValues),
     method(Name, In, ArgValues, Out).
+eval_method(In, Name, Out) -->
+    { atom(Name) },
+    method(Name, In, [], Out).
 
 eval_all([],[]) --> [].
 eval_all([In|Ins], [Out|Outs]) --> eval(In, Out), {debug(arg(In,Out))}, eval_all(Ins,Outs).
 
-eval_call(fun(Arity, Stmts), Args, Result) -->
-    { debug(call_fn_ars(Arity,Stmts,Args)), length(Args, ArgC),
-      (Arity = ArgC) -> true; throw(wrong_arity(expected(Arity),args(ArgC))) },
-    %eval_all(Args, ArgVals),{debug(argvals(ArgVals))},
-    %^fixme: already evaled
+eval_call(fun(_Arity, Stmts), Args, Result) -->
+    %{ debug(call_fn_ars(Arity,Stmts,Args)), length(Args, ArgC),
+    %  (Arity = ArgC) -> true; throw(wrong_arity(expected(Arity),args(ArgC))) },
     push_env,
     setargs(Args),
     dumpstate,
@@ -239,6 +263,7 @@ method(split, Lst, [Sep], Result) :-
     -> (split(Rest, Sep, RestSplit),
         Result=[Start|RestSplit])
     ; Result=Lst.
+method(len, Lst, [], Result) :- length(Lst, Result).
 
 % add all methods here
 method(keep/1).
@@ -259,6 +284,7 @@ method(join/1).
 method(split/1).
 method(if/1).
 method(if/2).
+method(len/0).
 
 falsy(nil).
 falsy(false).
@@ -271,8 +297,8 @@ run(File) :-
     phrase(eval_stmts(nil,Stmts,_Res), [ctx(env{},[],nil)], _).
 
 run_codes(Input, Out) :-
-    once(phrase(stmts(Stmts), Input)),
-    debug(got(Stmts)),
+    once(phrase(statements(Stmts), Input)),
+    debug(parsed_program(Stmts)),
     phrase(eval_stmts(nil,Stmts,Out), [ctx(env{},[],nil)], _).
 
 run_string(Input, Out) :-
@@ -299,13 +325,14 @@ prg("[1 2 3 4] heads", [[1,2,3,4],[2,3,4],[3,4],[4]]).
 prg("\"elf\" reverse", "fle").
 prg("\"some4digt02here\" keep(&digit), (_ first * 10) + _ last", 42).
 prg("1 to(5) reverse", [5,4,3,2,1]).
-prg("42 to(69 7)", [42,49,56,63]).
-prg("\"%s day with %d%% chance of rain\" fmt(\"sunny\" 7)",
+prg("42 to(69, 7)", [42,49,56,63]).
+prg("\"%s day with %d%% chance of rain\" fmt(\"sunny\",7)",
     "sunny day with 7% chance of rain").
 prg("[\"foo\" \"bar\" \"baz\"] join(\" and \")",
     "foo and bar and baz").
 prg("\"foo, quux, !\" split(", ")",
     ["foo", "quux", "!"]).
+prg("(\"foo\" ++ \"bar\") len", 6).
 test(programs, [forall(prg(Source,Expected))]) :-
     once(run_codes(Source,Actual)),
     Expected = Actual.

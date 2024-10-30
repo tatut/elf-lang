@@ -5,10 +5,21 @@ Designed to get help those elves get their xmas duties done
 without tripping into lava.
 
 
-## Syntax
+## Syntax and evaluation
 
 Syntax is a little bit Smalltalkish, with Perlish implicit values and Clojurish
 functional programming with old style JavaScriptish prototypal inheritance.... all implemented lovingly in Prolog.
+
+Like Smalltalk all method calls are evaluated first left to right, then all binary operators left to right.
+There is no operator precedence, use parenthesis to group math expressions.
+
+```
+# wrong appends 5 (length of string "World") to "Hello "
+"Hello " ++ "World" len
+
+# right, calculates length of "Hello World" (11)
+("Hello " ++ "World") len
+```
 
 **Why?**
 
