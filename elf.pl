@@ -44,9 +44,12 @@ fun(fun(Arity, Statements)) --> "\\", statements(Statements),
                                 { %walk(Statements, arg(Arity)) -> true; Arity = 0
                                     Arity = 0 % fixme
                                 }.
-lst(list(Items)) --> "[", lst_items(Items), ws, "]".
-lst_items([]) --> [].
-lst_items([I|Items]) --> ws, expr(I),lst_items(Items).
+lst(list(Items)) --> "[", list_items(Items), ws, "]".
+list_items([]) --> [].
+list_items([I|Items]) --> ws, exprt(I, ",]"), more_list_items(Items).
+more_list_items([]) --> [].
+more_list_items(Items) --> ws, ",", list_items(Items).
+
 op_(op(*)) --> "*".
 op_(op(/)) --> "/".
 op_(op(+)) --> "+".
@@ -210,6 +213,18 @@ method(if, Bool, [Then], Result) -->
     { \+ falsy(Bool) },
     eval_if(Bool, Then, Result).
 
+% takes an array of truth values and array of actions
+% runs/returns value corresponding to first true value
+method(cond, [], [Else], Result) -->
+    eval_if(true, Else, Result).
+method(cond, [], [], nil) --> [].
+method(cond, [B|Bools], [_|Actions], Result) -->
+    { falsy(B) },
+    method(cond, Bools, Actions, Result).
+method(cond, [B|_], [A|_], Result) -->
+    { \+ falsy(B) },
+    eval_if(B, A, Result).
+
 method(keep, [], [_], []) --> [].
 method(keep, [H|T], [Fn], Result) -->
     eval_call(Fn, [H], Hv),
@@ -260,7 +275,7 @@ method(join, Lst, [Sep], Out) :-
     append(Sep, Out, Intermediate).
 method(split, Lst, [Sep], Result) :-
     once(append([Start, Sep, Rest], Lst))
-    -> (split(Rest, Sep, RestSplit),
+    -> (method(split, Rest, [Sep], RestSplit),
         Result=[Start|RestSplit])
     ; Result=Lst.
 method(len, Lst, [], Result) :- length(Lst, Result).
@@ -285,6 +300,7 @@ method(split/1).
 method(if/1).
 method(if/2).
 method(len/0).
+method(cond/_).
 
 falsy(nil).
 falsy(false).
@@ -317,22 +333,24 @@ run_string_pretty(Input, Out) :-
 :- set_prolog_flag(double_quotes, codes).
 
 prg("foo: \"jas6sn0\", foo keep(&digit).", [6,0]).
-prg("[4 2 0 6 9] sum", 21).
-prg("[6 2] sum * 4", 32).
+prg("[4, 2, 0, 6, 9] sum", 21).
+prg("[6, 2] sum * 4", 32).
 prg("\"README.md\" lines first", "# Elf Helper programming language").
-prg("[1 2 3 4] map(\\ $ * 2.)", [2, 4, 6, 8]).
-prg("[1 2 3 4] heads", [[1,2,3,4],[2,3,4],[3,4],[4]]).
+prg("[1, 2, 3, 4] map(\\ $ * 2.)", [2, 4, 6, 8]).
+prg("[1, 2, 3, 4] heads", [[1,2,3,4],[2,3,4],[3,4],[4]]).
 prg("\"elf\" reverse", "fle").
 prg("\"some4digt02here\" keep(&digit), (_ first * 10) + _ last", 42).
 prg("1 to(5) reverse", [5,4,3,2,1]).
 prg("42 to(69, 7)", [42,49,56,63]).
 prg("\"%s day with %d%% chance of rain\" fmt(\"sunny\",7)",
     "sunny day with 7% chance of rain").
-prg("[\"foo\" \"bar\" \"baz\"] join(\" and \")",
+prg("[\"foo\", \"bar\" ,\"baz\"] join(\" and \")",
     "foo and bar and baz").
-prg("\"foo, quux, !\" split(", ")",
+prg("\"foo, quux, !\" split(\", \")",
     ["foo", "quux", "!"]).
 prg("(\"foo\" ++ \"bar\") len", 6).
+prg("([\"foo\" len] first > 1) if(\"big\")", "big").
+
 test(programs, [forall(prg(Source,Expected))]) :-
     once(run_codes(Source,Actual)),
     Expected = Actual.

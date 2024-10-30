@@ -33,4 +33,5 @@ fmt_([Spec|_], []) :-
 printable(N) :- integer(N), between(32, 126, N).
 
 pretty(X) :- is_list(X), maplist(printable, X), string_codes(Str, X), writeln(Str), !.
+pretty(nil) :- !. % output nothing on nil
 pretty(X) :- writeln(X).

@@ -41,7 +41,7 @@ Comments start with `#` and end in newline.
 
 666           # an integer
 
-[4 6 9]       # list of integers
+[4, 6, 9]       # list of integers
 
 true          # the true value
 false         # the false value
@@ -56,7 +56,7 @@ _             # reference to the value of the last statement
 
 \ $ * 2.      # function of arity 1
 
-["hello" "there"]  # list
+["hello", "there"]  # list
 
 {name: "Jolly Twinkletoes", age: 1607} # an object
 
