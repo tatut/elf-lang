@@ -78,6 +78,9 @@ method_args([Arg|Args]) --> stmt(Arg), more_method_args(Args).
 more_method_args([]) --> ws, [].
 more_method_args([Arg|Args]) --> ws1, stmt(Arg), more_method_args(Args).
 
+% Functions and method references are callable
+is_callable(fun(_,_)).
+is_callable(mref(_)).
 
 %%%% Evaluator
 
@@ -173,6 +176,16 @@ eval_stmts(Prev, [Stmt|Stmts], Result) -->
     { debug(intermed(Intermediate)) },
     eval_stmts(Intermediate, Stmts, Result).
 
+eval_if(_, Then, Then) --> [], { \+ is_callable(Then) }.
+eval_if(Bool, Then, Result) --> { is_callable(Then) },
+                                eval_call(Then, [Bool], Result).
+
+method(if, nil, [_], nil) -->  [].
+method(if, false, [_], nil) -->  [].
+method(if, Bool, [Then], Result) -->
+    { \+ falsy(Bool) },
+    eval_if(Bool, Then, Result).
+
 method(keep, [], [_], []) --> [].
 method(keep, [H|T], [Fn], Result) -->
     eval_call(Fn, [H], Hv),
@@ -244,6 +257,8 @@ method(to/2).
 method(filter/1).
 method(join/1).
 method(split/1).
+method(if/1).
+method(if/2).
 
 falsy(nil).
 falsy(false).

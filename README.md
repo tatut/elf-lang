@@ -30,6 +30,8 @@ Comments start with `#` and end in newline.
 
 666           # an integer
 
+[4 6 9]       # list of integers
+
 true          # the true value
 false         # the false value
 nil           # the nothing value
@@ -47,7 +49,7 @@ _             # reference to the value of the last statement
 
 {name: "Jolly Twinkletoes", age: 1607} # an object
 
-42 -> the_answer # assignment statement
+the_answer: 42 # assignment statement
 
 "naughty_list.txt" lines # call method lines on string
 
