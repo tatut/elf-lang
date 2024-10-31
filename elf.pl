@@ -5,6 +5,14 @@
 :- set_prolog_flag(double_quotes, codes).
 :- set_prolog_flag(elf_debug, false).
 
+% Record definition: record_field(RecordName, Num, FieldName).
+% Records are stored as compound terms and mutated with nb_arg.
+% Fields also act as 0 arg methods that return the value
+:- dynamic record_field/3.
+
+% Record method definition: record_method(RecordName, MethodName, fun(...))
+:- dynamic record_method/3.
+
 debug(Term) :- current_prolog_flag(elf_debug, D), debug(D, Term).
 debug(false, _).
 debug(true, T) :- writeln(T).
@@ -32,13 +40,28 @@ symbol(Name) --> csym(Name), { dif(Name, '_') }.
 arg_(arg(1)) --> "$".
 arg_(arg(N)) --> "$", integer(N).
 prev(prevval) --> "_".
+me(me) --> "me".
+ref(R) --> symbol(R); arg_(R); prev(R); me(R).
+
 mref(mref(Name)) --> "&", csym(Name).
 mcall(mcall(Name, Args)) --> symbol(Name), "(", ws, mcall_args(Args), ")".
 assign(assign(Name, Expr)) --> symbol(Name), ":", ws, exprt(Expr,",").
+assign(assign(Name1, [Name2], Expr)) --> ref(Name1), ".", symbol(Name2), ":",
+                                         ws, exprt(Expr, ",").
+
 mcall_args([A|Args]) --> exprt(A, ",)"), ws, more_mcall_args(Args).
 more_mcall_args([]) --> [].
 more_mcall_args(Args) --> ",", ws, mcall_args(Args).
-
+record_def(record_def(Name,Fields)) --> symbol(Name), "{", record_def_fields(Fields), "}".
+record_def_fields([F|Fields]) --> ws, symbol(F), more_record_def_fields(Fields).
+more_record_def_fields([]) --> ws.
+more_record_def_fields(Fields) --> ws, ",", record_def_fields(Fields).
+record_(record(Name, Fields)) --> symbol(Name), {writeln(rec(Name))},
+                                  "{", record_fields(Fields), "}".
+record_fields([]) --> ws.
+record_fields([F-V|Fields]) --> ws, symbol(F), ":", ws, exprt(V, ",}"), more_record_fields(Fields).
+more_record_fields([]) --> ws.
+more_record_fields(Fields) --> ws, ",", record_fields(Fields).
 
 fun(fun(Arity, Statements)) --> "\\", statements(Statements),
                                 { %walk(Statements, arg(Arity)) -> true; Arity = 0
@@ -64,7 +87,7 @@ op_(op('++')) --> "++". % append lists
 end(End), [Ch] --> [Ch], { memberchk(Ch, End) }.
 end(_) --> ws, eos. % whitespace at the end also closes statements
 
-expr(A) --> value(A); symbol(A); arg_(A); lst(A); mref(A); prev(A); fun(A); op_(A); mcall(A); assign(A).
+expr(A) --> value(A); symbol(A); arg_(A); lst(A); mref(A); prev(A); fun(A); op_(A); mcall(A); assign(A); record_def(A); record_(A).
 expr(sub(S)) --> "(", exprt(S, ")"), ")".
 
 exprs([],End) --> end(End).
@@ -123,6 +146,8 @@ push_env, [S, Env] --> [S], { S = ctx(Env,_,_) }.
 pop_env, [ctx(EnvSaved,[],nil)] --> [ctx(_,_,_), EnvSaved].
 setprev(P) --> state(ctx(E,A,_), ctx(E,A,P)).
 setargs(A) --> state(ctx(E,_,P), ctx(E,A,P)).
+setenv(Name,Val) --> state(ctx(Env0,A,P), ctx(Env1,A,P)),
+                     { put_dict(Name, Env0, Val, Env1) }.
 dumpstate --> state(S), {debug(state(S))}.
 
 fail_nil(X) :- dif(X, nil).
@@ -137,6 +162,13 @@ eval(assign(Name, Expr), Val) -->
     eval(Expr, Val),
     state(ctx(Env0,A,P), ctx(Env1,A,P)),
     { put_dict(Name, Env0, Val, Env1) }.
+
+% Assign new method to record
+eval(assign(At, [Path], Expr), Val) -->
+    { once(record_field(At,_,_)) },
+    eval(Expr, Val),
+    { asserta(record_method(At, Path, Val)) }.
+
 eval(val(V), V) --> [].
 eval(list([]), []) --> [].
 eval(list([H|T]), [Hv|Tvs]) -->
@@ -150,6 +182,26 @@ eval(op(Left,Op,Right), Val) -->
     { eval_op(Lv,Op,Rv, Val) }.
 eval(fun(A,S), fun(A,S)) --> [].
 eval(arg(N), V) --> state(ctx(_,Args,_)), { nth1(N, Args, V) }.
+
+eval(record_def(Name, Fields), record_ref(Name)) -->
+    [],
+    { length(Fields, Len),
+      findall(I, between(1,Len,I), Is),
+      maplist({Name,Fields}/[I]>>(nth1(I, Fields, F),
+                                  asserta(record_field(Name, I, F))), Is) }.
+
+eval(record(Name, Fields), Instance) -->
+    { aggregate(max(I), record_field(Name,I,_), FieldCount),
+      length(InitFieldVals, FieldCount), maplist(=(nil), InitFieldVals),
+      compound_name_arguments(Instance, Name, InitFieldVals) },
+    eval_record_fields(Name, Instance, Fields).
+
+eval_record_fields(_, _, []) --> [].
+eval_record_fields(Record, Instance, [Name-ValExpr|Fields]) -->
+    eval(ValExpr, Val),
+    { record_field(Record, N, Name),
+      nb_setarg(N, Instance, Val) },
+    eval_record_fields(Record, Instance, Fields).
 
 eval_op(L,+,R,V) :- V is L + R.
 eval_op(L,-,R,V) :- V is L - R.
@@ -194,6 +246,14 @@ eval_call(mref(Name), [Me|Args], Result) -->
     { length(Args, ArgC),
       method(Name/Argc) -> true; throw(no_such_method_error(name(Name),arity(ArgC))) },
     method(Name, Me, Args, Result).
+
+% Eval a method defined on a record
+eval_call_my(fun(_Arity, Stmts), My, Args, Result) -->
+    push_env,
+    setargs(Args),
+    setenv(my, My),
+    eval_stmts(nil, Stmts, Result),
+    pop_env.
 
 eval_stmts(Result,[],Result) --> [].
 eval_stmts(Prev, [Stmt|Stmts], Result) -->
@@ -244,6 +304,11 @@ method(filter, [H|T], [Fn], Result) -->
     method(filter, T, [Fn], Rest),
     { \+ falsy(Include) -> Result=[H|Rest]; Result=Rest }.
 
+method(Name, My, Args, Result) -->
+    { functor(My, Record, _),
+      record_method(Record, Name, Fun) },
+    eval_call_my(Fun, My, Args, Result).
+
 % Any pure Prolog method, that doesn't need DCG evaluation context
 method(Method, Me, Args, Result) --> [], { method(Method, Me, Args, Result) }.
 
@@ -280,6 +345,13 @@ method(split, Lst, [Sep], Result) :-
     ; Result=Lst.
 method(len, Lst, [], Result) :- length(Lst, Result).
 
+% Record fields act as getter
+method(Field, RecordInstance, [], Val) :-
+    functor(RecordInstance, Record, _),
+    record_field(Record, I, Field),
+    arg(I, RecordInstance, Val).
+
+
 % add all methods here
 method(keep/1).
 method(print/0).
@@ -307,15 +379,19 @@ falsy(false).
 
 %% Top level runner interface
 
+exec(Stmts, Out) :-
+    retractall(record_field(_,_,_)),
+    retractall(record_method(_,_,_)),
+    phrase(eval_stmts(nil,Stmts,Out), [ctx(env{},[],nil)], _).
+
 run(File) :-
     once(phrase_from_file(stmts(Stmts), File)),
-    %debug(got(Stmts)),
-    phrase(eval_stmts(nil,Stmts,_Res), [ctx(env{},[],nil)], _).
+    exec(Stmts, _Out).
 
 run_codes(Input, Out) :-
     once(phrase(statements(Stmts), Input)),
     debug(parsed_program(Stmts)),
-    phrase(eval_stmts(nil,Stmts,Out), [ctx(env{},[],nil)], _).
+    exec(Stmts,Out).
 
 run_string(Input, Out) :-
     string_codes(Input, Codes),

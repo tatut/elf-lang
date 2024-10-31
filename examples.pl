@@ -12,4 +12,17 @@ ex("format string",
 ex("FizzBuzz",
    "1 to(100) do(\\[(($ % 15) = 0), (($ % 3) = 0), (($ % 5) = 0)] cond(\"FizzBuzz\",\"Fizz\",\"Buzz\", $) print.)").
 
+ex("Records",
+   "# define Elf record
+Elf{name, age},
+
+# install a method on it
+Elf.greet: \\ \"Hello %s, my names is %s!\" fmt($, my name).,
+
+# Make an instance
+Elf{name: \"Elfo\", age: 666},
+
+# Call method on it
+_ greet(\"world\")").
+
 ex("foo", "bar").

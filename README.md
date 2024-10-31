@@ -49,7 +49,7 @@ nil           # the nothing value
 
 $             # reference to the 1st argument in function
 $1 ... $9     # reference to the Nth argument in function
-me            # reference current object in methods
+my            # reference current object in methods
 &foo          # reference to method named foo
 
 _             # reference to the value of the last statement
@@ -58,7 +58,14 @@ _             # reference to the value of the last statement
 
 ["hello", "there"]  # list
 
-{name: "Jolly Twinkletoes", age: 1607} # an object
+Elf{name,age} # object record definition
+Elf.greet: \ "Hello %s, my name is %s." fmt(my name, $). # define method on record
+
+elf greet("world") # call method
+
+Elf{name: "Jolly Twinkletoes", age: 1607} # an object
+
+Elf new("Scrappy Fairytoes", 666) # programmatic construction
 
 the_answer: 42 # assignment statement
 
