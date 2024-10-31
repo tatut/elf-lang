@@ -142,8 +142,8 @@ is_callable(mref(_)).
 state(S), [S] --> [S].
 state(S0, S), [S] --> [S0].
 
-push_env, [S, Env] --> [S], { S = ctx(Env,_,_) }.
-pop_env, [ctx(EnvSaved,[],nil)] --> [ctx(_,_,_), EnvSaved].
+push_env, [S, S] --> [S].
+pop_env, [CtxSaved] --> [ctx(_,_,_), CtxSaved].
 setprev(P) --> state(ctx(E,A,_), ctx(E,A,P)).
 setargs(A) --> state(ctx(E,_,P), ctx(E,A,P)).
 setenv(Name,Val) --> state(ctx(Env0,A,P), ctx(Env1,A,P)),
@@ -244,7 +244,7 @@ eval_call(fun(_Arity, Stmts), Args, Result) -->
 
 eval_call(mref(Name), [Me|Args], Result) -->
     { length(Args, ArgC),
-      method(Name/Argc) -> true; throw(no_such_method_error(name(Name),arity(ArgC))) },
+      method(Name/ArgC) -> true; throw(no_such_method_error(name(Name),arity(ArgC))) },
     method(Name, Me, Args, Result).
 
 % Eval a method defined on a record
@@ -270,6 +270,11 @@ eval_if(Bool, Then, Result) --> { is_callable(Then) },
 method(if, nil, [_], nil) -->  [].
 method(if, false, [_], nil) -->  [].
 method(if, Bool, [Then], Result) -->
+    { \+ falsy(Bool) },
+    eval_if(Bool, Then, Result).
+method(if, nil, [_, Else], Result) --> eval_if(nil, Else, Result).
+method(if, false, [_, Else], Result) --> eval_if(false, Else, Result).
+method(if, Bool, [Then, _], Result) -->
     { \+ falsy(Bool) },
     eval_if(Bool, Then, Result).
 
@@ -342,7 +347,7 @@ method(split, Lst, [Sep], Result) :-
     once(append([Start, Sep, Rest], Lst))
     -> (method(split, Rest, [Sep], RestSplit),
         Result=[Start|RestSplit])
-    ; Result=Lst.
+    ; Result=[Lst].
 method(len, Lst, [], Result) :- length(Lst, Result).
 
 % Record fields act as getter
@@ -406,29 +411,28 @@ run_string_pretty(Input, Out) :-
 
 
 :- begin_tests(elf).
-:- set_prolog_flag(double_quotes, codes).
 
 prg("foo: \"jas6sn0\", foo keep(&digit).", [6,0]).
 prg("[4, 2, 0, 6, 9] sum", 21).
 prg("[6, 2] sum * 4", 32).
-prg("\"README.md\" lines first", "# Elf Helper programming language").
+prg("\"README.md\" lines first", `# Elf Helper programming language`).
 prg("[1, 2, 3, 4] map(\\ $ * 2.)", [2, 4, 6, 8]).
 prg("[1, 2, 3, 4] heads", [[1,2,3,4],[2,3,4],[3,4],[4]]).
-prg("\"elf\" reverse", "fle").
+prg("\"elf\" reverse", `fle`).
 prg("\"some4digt02here\" keep(&digit), (_ first * 10) + _ last", 42).
 prg("1 to(5) reverse", [5,4,3,2,1]).
 prg("42 to(69, 7)", [42,49,56,63]).
 prg("\"%s day with %d%% chance of rain\" fmt(\"sunny\",7)",
-    "sunny day with 7% chance of rain").
+    `sunny day with 7% chance of rain`).
 prg("[\"foo\", \"bar\" ,\"baz\"] join(\" and \")",
-    "foo and bar and baz").
+    `foo and bar and baz`).
 prg("\"foo, quux, !\" split(\", \")",
-    ["foo", "quux", "!"]).
+    [`foo`, `quux`, `!`]).
 prg("(\"foo\" ++ \"bar\") len", 6).
-prg("([\"foo\" len] first > 1) if(\"big\")", "big").
+prg("([\"foo\" len] first > 1) if(\"big\")", `big`).
 
 test(programs, [forall(prg(Source,Expected))]) :-
-    once(run_codes(Source,Actual)),
+    once(run_string(Source,Actual)),
     Expected = Actual.
 
 

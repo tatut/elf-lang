@@ -6,29 +6,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.63.1/codemirror.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.63.1/codemirror.min.css"></link>
 
-    <style>
-
-      .loader {
-          width: 48px;
-          height: 48px;
-          border: 5px solid #FFF;
-          border-bottom-color: transparent;
-          border-radius: 50%;
-          display: inline-block;
-          box-sizing: border-box;
-          animation: rotation 1s linear infinite;
-      }
-
-      @keyframes rotation {
-          0% {
-              transform: rotate(0deg);
-          }
-          100% {
-              transform: rotate(360deg);
-          }
-      }
-    </style>
-
     <script>
       function initCode() {
           (async () => {
@@ -42,12 +19,14 @@
                           let code = Prolog.query(
                               "examples:ex(N,Code)",
                               {N: new Prolog.String(opts.value)}).once().Code.v;
-                          editor.getDoc().setValue(code);
-                      };
-                      for(let r of Prolog.query("examples:ex(N,_)")) {
-                          console.log(r.N);
-                          opts.add(new Option(r.N.v, r.N.v));
-                      }
+                          editor.getDoc().setValue(code); };
+
+                      let q = Prolog.query("examples:ex(N,_)");
+                      let r;
+                      do {
+                          r = q.next();
+                          opts.add(new Option(r.value.N.v, r.value.N.v));
+                      } while(!r.done);
                   });
           })();
 
@@ -67,16 +46,12 @@
       function run() {
           document.getElementById('result').innerHTML = "";
           let code = editor.getDoc().getValue();
-          let loader = document.getElementById('loader');
-          loader.style.visibility='';
           localStorage.setItem("elfcode", code);
           document.getElementById("log").innerHTML = ""; // clear log
           for(let r of Prolog.query("elf:run_string_pretty(Str, Result)", {Str: code})) {
               console.log(r.Result);
               document.getElementById('result').innerHTML = r.Result;
           }
-          loader.style.display='hidden';
-
       }
 
       function log(msg) {
@@ -93,7 +68,6 @@
     <textarea id="code">[1 2 4] sum</textarea>
     <div>
       <button onclick="run()">run</button>
-      <span class="loader" id="loader" style="visibility: hidden;"></span>
     </div>
 
     <div id="result"></div>
