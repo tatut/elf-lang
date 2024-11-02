@@ -36,30 +36,34 @@ value(val(Ch)) --> "@", [Ch].
 value(val(true)) --> "true".
 value(val(false)) --> "false".
 value(val(nil)) --> "nil".
-symbol(Name) --> csym(Name), { dif(Name, '_') }.
+symbol_(Name) --> csym(Name), { dif(Name, '_') }.
+symbol(sym(Name)) --> symbol_(Name).
 arg_(arg(1)) --> "$".
 arg_(arg(N)) --> "$", integer(N).
 prev(prevval) --> "_".
-me(me) --> "me".
-ref(R) --> symbol(R); arg_(R); prev(R); me(R).
+ref(R) --> symbol(R); arg_(R); prev(R).
 
 mref(mref(Name)) --> "&", csym(Name).
-mcall(mcall(Name, Args)) --> symbol(Name), "(", ws, mcall_args(Args), ")".
-assign(assign(Name, Expr)) --> symbol(Name), ":", ws, exprt(Expr,",").
-assign(assign(Name1, [Name2], Expr)) --> ref(Name1), ".", symbol(Name2), ":",
+mcall(mcall(Name, Args)) --> symbol_(Name), "(", ws, mcall_args(Args), ")".
+assign(assign(Name, Expr)) --> symbol_(Name), ":", ws, exprt(Expr,",").
+assign(assign(Name1, [Name2], Expr)) --> ref(Name1), ".", symbol_(Name2), ":",
                                          ws, exprt(Expr, ",").
 
 mcall_args([A|Args]) --> exprt(A, ",)"), ws, more_mcall_args(Args).
 more_mcall_args([]) --> [].
 more_mcall_args(Args) --> ",", ws, mcall_args(Args).
-record_def(record_def(Name,Fields)) --> symbol(Name), "{", record_def_fields(Fields), "}".
-record_def_fields([F|Fields]) --> ws, symbol(F), more_record_def_fields(Fields).
+record_def(record_def(Name,Fields,Methods)) --> symbol_(Name), "{", record_def_fields(Fields), record_def_methods(Methods), "}".
+record_def_fields([]) --> ws.
+record_def_fields([F|Fields]) --> ws, symbol_(F), more_record_def_fields(Fields).
 more_record_def_fields([]) --> ws.
 more_record_def_fields(Fields) --> ws, ",", record_def_fields(Fields).
-record_(record(Name, Fields)) --> symbol(Name), {writeln(rec(Name))},
+
+record_def_methods([]) --> ws.
+
+record_(record(Name, Fields)) --> symbol_(Name), {writeln(rec(Name))},
                                   "{", record_fields(Fields), "}".
 record_fields([]) --> ws.
-record_fields([F-V|Fields]) --> ws, symbol(F), ":", ws, exprt(V, ",}"), more_record_fields(Fields).
+record_fields([F-V|Fields]) --> ws, symbol_(F), ":", ws, exprt(V, ",}"), more_record_fields(Fields).
 more_record_fields([]) --> ws.
 more_record_fields(Fields) --> ws, ",", record_fields(Fields).
 
@@ -155,9 +159,7 @@ fail_nil(X) :- dif(X, nil).
 eval([Expr|Methods], Out) --> eval(Expr, Val), eval_methods(Val, Methods, Out).
 
 eval(sub(Expr), Out) --> eval(Expr, Out).
-eval(Sym, Val) --> { atom(Sym) },
-                   state(ctx(Env,_,_)),
-                   { get_dict(Sym, Env, Val) }.
+eval(sym(Sym), Val) --> state(ctx(Env,_,_)), { get_dict(Sym, Env, Val) }.
 eval(assign(Name, Expr), Val) -->
     eval(Expr, Val),
     state(ctx(Env0,A,P), ctx(Env1,A,P)),
@@ -183,14 +185,14 @@ eval(op(Left,Op,Right), Val) -->
 eval(fun(A,S), fun(A,S)) --> [].
 eval(arg(N), V) --> state(ctx(_,Args,_)), { nth1(N, Args, V) }.
 
-eval(record_def(Name, Fields), record_ref(Name)) -->
+eval(record_def(Name, Fields, _Methods), record_ref(Name)) -->
     [],
     { length(Fields, Len),
       findall(I, between(1,Len,I), Is),
       maplist({Name,Fields}/[I]>>(nth1(I, Fields, F),
                                   asserta(record_field(Name, I, F))), Is) }.
 
-eval(record(Name, Fields), Instance) -->
+eval(record(Name, Fields), rec(Instance)) -->
     { aggregate(max(I), record_field(Name,I,_), FieldCount),
       length(InitFieldVals, FieldCount), maplist(=(nil), InitFieldVals),
       compound_name_arguments(Instance, Name, InitFieldVals) },
@@ -226,9 +228,7 @@ eval_methods(In, [M|Methods], Out) -->
 eval_method(In, mcall(Name, Args), Out) -->
     eval_all(Args, ArgValues),
     method(Name, In, ArgValues, Out).
-eval_method(In, Name, Out) -->
-    { atom(Name) },
-    method(Name, In, [], Out).
+eval_method(In, sym(Name), Out) --> method(Name, In, [], Out).
 
 eval_all([],[]) --> [].
 eval_all([In|Ins], [Out|Outs]) --> eval(In, Out), {debug(arg(In,Out))}, eval_all(Ins,Outs).
@@ -351,10 +351,15 @@ method(split, Lst, [Sep], Result) :-
 method(len, Lst, [], Result) :- length(Lst, Result).
 
 % Record fields act as getter
-method(Field, RecordInstance, [], Val) :-
+method(Field, rec(RecordInstance), [], Val) :-
     functor(RecordInstance, Record, _),
     record_field(Record, I, Field),
     arg(I, RecordInstance, Val).
+% Record fields with 1 parameter act as setter
+method(Field, rec(RecordInstance), [Val], rec(RecordInstance)) :-
+    functor(RecordInstance, Record, _),
+    record_field(Record, I, Field),
+    nb_setarg(I, RecordInstance, Val).
 
 
 % add all methods here
@@ -394,6 +399,7 @@ run(File) :-
     exec(Stmts, _Out).
 
 run_codes(Input, Out) :-
+    %call_with_time_limit(1, (phrase(statements(Stmts), Input))),
     once(phrase(statements(Stmts), Input)),
     debug(parsed_program(Stmts)),
     exec(Stmts,Out).
@@ -430,6 +436,7 @@ prg("\"foo, quux, !\" split(\", \")",
     [`foo`, `quux`, `!`]).
 prg("(\"foo\" ++ \"bar\") len", 6).
 prg("([\"foo\" len] first > 1) if(\"big\")", `big`).
+prg("Elf{age}, e: Elf{age:665}, e age(e age + 1)", rec('Elf'(666))).
 
 test(programs, [forall(prg(Source,Expected))]) :-
     once(run_string(Source,Actual)),

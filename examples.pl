@@ -37,10 +37,13 @@ ex("Records",
 Elf{name, age},
 
 # install a method on it
-Elf.greet: \\ \"Hello %s, my names is %s!\" fmt($, my name).,
+Elf.greet: \\ \"Hello %s, my names is %s! and I'm %d years old\" fmt($, my name, my age).,
 
 # Make an instance
 Elf{name: \"Elfo\", age: 666},
+
+# increment age
+_ age(_ age + 1),
 
 # Call method on it
 _ greet(\"world\")").
