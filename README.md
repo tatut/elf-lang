@@ -81,3 +81,29 @@ somebool if(thenblock)
 somebool ife(thenblock, elseblock)
 
 ```
+
+### Valid names
+
+Names of any methods or assignments must begin with a letter (case doesn't matter),
+after that it may contain alphanumeric and `-`, `_` and `?` characters.
+
+For example these are valid names:
+- `my_variable`
+- `is-valid?`
+- `Foo1`
+
+Reserved words `and` and `or` cannot be used as names.
+
+### Binary operations
+
+Elf supports the following binary operators:
+- `+`,`-`,`*`,`/`,`%` numeric addition, substraction, multiplication, division and modulo (number)
+- `<`, `<=`, `>`, `>=` numeric less than, less than or equals, greater than and greater than or equals (true/false)
+- `=` value equality (true/false)
+- `++` list append (yields list that is the appended left and right hand side lists)
+- `and` boolean truth (true if both left and right hand sides are truthy, false otherwise)
+- `or` boolean or (true if either left or right hand side is truthy, false otherwise)
+
+# Standard library
+
+This section lists all builtin methods.

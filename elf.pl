@@ -18,6 +18,10 @@ debug(Term) :- current_prolog_flag(elf_debug, D), debug(D, Term).
 debug(false, _).
 debug(true, T) :- writeln(T).
 
+% Reserved words that cannot be names.
+reserved(and).
+reserved(or).
+
 % Print error and fail
 err(Fmt, Args) :- format(string(Err), Fmt, Args), writeln(user_error, Err), throw(stop_on_err(Fmt,Args)).
 
@@ -51,7 +55,7 @@ symbol_ch(63). % ?
 symbol_(Name) --> symbol_chf(Ch), sequence(symbol_ch, Chs),
                   { atom_codes(Name, [Ch|Chs]) }.
 
-symbol(sym(Name)) --> symbol_(Name).
+symbol(sym(Name)) --> symbol_(Name), { \+ reserved(Name) }.
 arg_(arg(1)) --> "$".
 arg_(arg(N)) --> "$", integer(N).
 prev(prevval) --> "_".
@@ -95,10 +99,14 @@ op_(op(/)) --> "/".
 op_(op(+)) --> "+".
 op_(op(-)) --> "-".
 op_(op(>)) --> ">".
+op_(op(>=)) --> ">=".
 op_(op(<)) --> "<".
+op_(op(<=)) --> "<=".
 op_(op(=)) --> "=".
 op_(op('%')) --> "%".
 op_(op('++')) --> "++". % append lists
+op_(op(and)) --> "and".
+op_(op(or)) --> "or".
 
 % check end, but don't consume it
 end(End), [Ch] --> [Ch], { memberchk(Ch, End) }.
@@ -196,7 +204,7 @@ eval(prevval, Val) --> state(ctx(_,_,Val)).
 eval(op(Left,Op,Right), Val) -->
     eval(Left, Lv),
     eval(Right, Rv),
-    { eval_op(Lv,Op,Rv, Val) }.
+    { once(eval_op(Lv,Op,Rv, Val)) }.
 eval(fun(A,S), fun(A,S)) --> [].
 eval(arg(N), V) --> state(ctx(_,Args,_)), { nth1(N, Args, V) }.
 
@@ -228,12 +236,25 @@ eval_op(L,>,R,false) :- L =< R.
 eval_op(L,>,R,true) :- L > R.
 eval_op(L,<,R,false) :- L >= R.
 eval_op(L,<,R,true) :- L < R.
+eval_op(L,<=,R,true) :- L =< R.
+eval_op(L,<=,R,false) :- L > R.
+eval_op(L,>=,R,true) :- L >= R.
+eval_op(L,>=,R,false) :- L < R.
 eval_op(L,'%',R,V) :- V is L mod R.
 eval_op(X,'=',X,true).
 eval_op(L,'=',R,false) :- dif(L,R).
 eval_op(L,'++',R,Append) :- is_list(L), is_list(R), append(L,R,Append).
-eval_op(L,'++',R,[L|R]) :- \+ is_list(L), is_list(R).
-eval_op(L,'++',R,Append) :- is_list(L), \+ is_list(R), append(L,[R],Append).
+% nil acts as empty list for append
+eval_op(nil,'++',R,R).
+eval_op(L,'++',nil,L).
+eval_op(true,and,true,true).
+eval_op(false,and,false,false).
+eval_op(true,and,false,false).
+eval_op(false,and,true,false).
+eval_op(true,or,true,true).
+eval_op(true,or,false,true).
+eval_op(false,or,true,true).
+eval_op(false,or,false,false).
 
 eval_methods(In, [], In) --> [].
 eval_methods(In, [M|Methods], Out) -->
