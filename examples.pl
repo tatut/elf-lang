@@ -39,6 +39,13 @@ ns do(\\ ($ > 10) if(\"big\", $) print.)",
 ex("FizzBuzz",
    "1 to(100) do(\\ n:$, [15,3,5] map(\\ (n % $) = 0.) cond(\"FizzBuzz\",\"Fizz\",\"Buzz\", $) print.)", nil).
 
+ex("FizzBuzz 2",
+   "1 to(100) do(\\
+ fizz: ($ % 3) = 0,
+ buzz: ($ % 5) = 0,
+ (fizz or buzz) if(\\ (fizz if(\"Fizz\") ++ buzz if(\"Buzz\"))., $) print.)",
+   nil).
+
 ex("Records",
    "# define Elf record
 Elf{name, age},
