@@ -1,5 +1,6 @@
 :- module(elf, [run/1, run_codes/2, run_string/2, run_string_pretty/2]).
 :- use_module(library(dcg/basics)).
+:- use_module(library(dcg/high_order)).
 :- use_module(library(yall)).
 :- use_module(stdlib/fmt).
 :- set_prolog_flag(double_quotes, codes).
@@ -39,7 +40,17 @@ value(val(Ch)) --> "@", [Ch].
 value(val(true)) --> "true".
 value(val(false)) --> "false".
 value(val(nil)) --> "nil".
-symbol_(Name) --> csym(Name), { dif(Name, '_') }.
+
+symbol_chf(Ch) --> [Ch], { code_type(Ch, alpha) }.
+symbol_ch(Ch) --> [Ch], { symbol_ch(Ch) }.
+symbol_ch(Ch) :- code_type(Ch, alnum).
+symbol_ch(95). % _
+symbol_ch(45). % -
+symbol_ch(63). % ?
+
+symbol_(Name) --> symbol_chf(Ch), sequence(symbol_ch, Chs),
+                  { atom_codes(Name, [Ch|Chs]) }.
+
 symbol(sym(Name)) --> symbol_(Name).
 arg_(arg(1)) --> "$".
 arg_(arg(N)) --> "$", integer(N).
