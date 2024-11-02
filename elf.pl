@@ -425,7 +425,7 @@ run_string_pretty(Input, Out) :-
 prg("foo: \"jas6sn0\", foo keep(&digit).", [6,0]).
 prg("[4, 2, 0, 6, 9] sum", 21).
 prg("[6, 2] sum * 4", 32).
-prg("\"README.md\" lines first", `# Elf Helper programming language`).
+prg("\"README.md\" lines first", `# Elf programming language`).
 prg("[1, 2, 3, 4] map(\\ $ * 2.)", [2, 4, 6, 8]).
 prg("[1, 2, 3, 4] heads", [[1,2,3,4],[2,3,4],[3,4],[4]]).
 prg("\"elf\" reverse", `fle`).
