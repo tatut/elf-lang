@@ -3,11 +3,12 @@
 
 fmt(PatternCs, Args, Out) :-
     string_codes(Pattern, PatternCs),
-    re_split('%(s|d|%)', Pattern, Splits),
+    re_split('%(s|d|w|%)', Pattern, Splits),
     with_output_to_codes(fmt_(Splits,Args), Out).
 
 spec("%s").
 spec("%d").
+spec("%w").
 spec("%%").
 
 fmt_([],[]).
@@ -21,6 +22,9 @@ fmt_(["%s"|Patterns], [StrCs|Args]) :-
     fmt_(Patterns, Args).
 fmt_(["%d"|Patterns], [Num|Args]) :-
     write(Num),
+    fmt_(Patterns,Args).
+fmt_(["%w"|Patterns], [Thing|Args]) :-
+    write(Thing),
     fmt_(Patterns,Args).
 fmt_([Str|Patterns], Args) :-
     \+ spec(Str),

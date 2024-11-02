@@ -320,15 +320,27 @@ method(cond, [B|_], [A|_], Result) -->
     { \+ falsy(B) },
     eval_if(B, A, Result).
 
+method(keep, nil, _, []) --> [].
 method(keep, [], [_], []) --> [].
 method(keep, [H|T], [Fn], Result) -->
     eval_call(Fn, [H], Hv),
     method(keep, T, [Fn], Tvs),
     { \+ falsy(Hv) -> Result=[Hv|Tvs]; Result=Tvs }.
+method(map, nil, _, []) --> [].
 method(map, [], _, []) --> [].
 method(map, [H|T], [Fn], [Hv|Tvs]) -->
     eval_call(Fn, [H], Hv),
     method(map, T, [Fn], Tvs).
+
+method(mapcat, nil, _, []) --> [].
+method(mapcat, [], _, []) --> [].
+method(mapcat, [H|T], [Fn], Result) -->
+    eval_call(Fn, [H], Hv),
+    method(map, T, [Fn], Tvs),
+    { append([Hv|Tvs], Result) }.
+
+
+method(do, nil, _, nil) --> [].
 method(do, [], _, nil) --> [].
 method(do, [H|T], [Fn], nil) -->
     eval_call(Fn, [H], _),
@@ -379,6 +391,7 @@ method(split, Lst, [Sep], Result) :-
     -> (method(split, Rest, [Sep], RestSplit),
         Result=[Start|RestSplit])
     ; Result=[Lst].
+method(len, nil, [], 0).
 method(len, Lst, [], Result) :- length(Lst, Result).
 
 % Record fields act as getter
@@ -390,7 +403,7 @@ method(Field, rec(RecordInstance), [], Val) :-
 method(Field, rec(RecordInstance), [Val], rec(RecordInstance)) :-
     functor(RecordInstance, Record, _),
     record_field(Record, I, Field),
-    nb_setarg(I, RecordInstance, Val).
+    setarg(I, RecordInstance, Val).
 
 
 % add all methods here
