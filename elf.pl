@@ -63,11 +63,11 @@ ref(R) --> symbol(R); arg_(R); prev(R).
 
 mref(mref(Name)) --> "&", csym(Name).
 mcall(mcall(Name, Args)) --> symbol_(Name), "(", ws, mcall_args(Args), ")".
-assign(assign(Name, Expr)) --> symbol_(Name), ":", ws, exprt(Expr,",").
+assign(assign(Name, Expr)) --> symbol_(Name), ":", ws, exprt(Expr).
 assign(assign(Name1, [Name2], Expr)) --> symbol_(Name1), ".", symbol_(Name2), ":",
-                                         ws, exprt(Expr, ",").
+                                         ws, exprt(Expr).
 
-mcall_args([A|Args]) --> exprt(A, ",)"), ws, more_mcall_args(Args).
+mcall_args([A|Args]) --> exprt(A), ws, more_mcall_args(Args).
 more_mcall_args([]) --> [].
 more_mcall_args(Args) --> ",", ws, mcall_args(Args).
 record_def(record_def(Name,Fields,Methods)) --> symbol_(Name), "{", record_def_fields(Fields), record_def_methods(Methods), "}".
@@ -80,17 +80,15 @@ record_def_methods([]) --> ws.
 
 record_(record(Name, Fields)) --> symbol_(Name), "{", record_fields(Fields), "}".
 record_fields([]) --> ws.
-record_fields([F-V|Fields]) --> ws, symbol_(F), ":", ws, exprt(V, ",}"), more_record_fields(Fields).
+record_fields([F-V|Fields]) --> ws, symbol_(F), ":", ws, exprt(V), more_record_fields(Fields).
 more_record_fields([]) --> ws.
 more_record_fields(Fields) --> ws, ",", record_fields(Fields).
 
-fun(fun(Arity, Statements)) --> "\\", statements(Statements),
-                                { %walk(Statements, arg(Arity)) -> true; Arity = 0
-                                    Arity = 0 % fixme
-                                }.
+fun(fun(Arity, Statements)) --> "{", statements(Statements), "}". % fixme: determine arity
+
 lst(list(Items)) --> "[", list_items(Items), ws, "]".
 list_items([]) --> [].
-list_items([I|Items]) --> ws, exprt(I, ",]"), more_list_items(Items).
+list_items([I|Items]) --> ws, exprt(I), more_list_items(Items).
 more_list_items([]) --> [].
 more_list_items(Items) --> ws, ",", list_items(Items).
 
@@ -112,17 +110,17 @@ op_(op(or)) --> "or".
 end(End), [Ch] --> [Ch], { memberchk(Ch, End) }.
 end(_) --> ws, eos. % whitespace at the end also closes statements
 
-expr(A) --> value(A); symbol(A); arg_(A); lst(A); mref(A); prev(A); fun(A); op_(A); mcall(A); assign(A); record_def(A); record_(A).
-expr(sub(S)) --> "(", exprt(S, ")"), ")".
+expr(A) --> value(A); symbol(A); arg_(A); lst(A); mref(A); prev(A); fun(A); op_(A); mcall(A); record_def(A); record_(A).
+expr(sub(S)) --> "(", exprt(S), ")".
 
-exprs([],End) --> end(End).
-exprs([E|Exprs], End) -->
-    expr(E), more_exprs(Exprs,End).
-more_exprs([], End) --> ws, end(End).
-more_exprs(Exprs,End) --> ws1, exprs(Exprs,End).
+exprs([]) --> [].
+exprs([E|Exprs]) -->
+    expr(E), more_exprs(Exprs).
+more_exprs([]) --> ws.
+more_exprs(Exprs) --> ws1, exprs(Exprs).
 
 % Take expression parts and turn it into execution tree
-exprt(E, End) --> ws, exprs(Es, End), { exprs_tree(Es, E) }.
+exprt(E) --> ws, exprs(Es), { exprs_tree(Es, E) }.
 exprs_tree(Lst, op(Left, Op, Right)) :-
     % Split by binary ops
     once(append([Before, [op(Op)], After], Lst)),
@@ -130,10 +128,13 @@ exprs_tree(Lst, op(Left, Op, Right)) :-
     exprs_tree(After, Right).
 exprs_tree(Lst, Lst) :- \+ memberchk(op(_), Lst).
 
+stmt(St) --> exprt(St).
+stmt(St) --> assign(St).
+
 statements([Expr|Stmts]) -->
-    ws, exprt(Expr, ",."),
+    ws, stmt(Expr),
     more_statements(Stmts).
-more_statements([]) --> "."; eos.
+more_statements([]) --> ws; eos.
 more_statements(Stmts) --> ",", statements(Stmts).
 
 
@@ -454,11 +455,11 @@ run_string_pretty(Input, Out) :-
 :- begin_tests(elf).
 :- use_module(examples, [ex/3]).
 
-prg("foo: \"jas6sn0\", foo keep(&digit).", [6,0]).
+prg("foo: \"jas6sn0\", foo keep(&digit)", [6,0]).
 prg("[4, 2, 0, 6, 9] sum", 21).
 prg("[6, 2] sum * 4", 32).
 prg("\"README.md\" lines first", `# Elf programming language`).
-prg("[1, 2, 3, 4] map(\\ $ * 2.)", [2, 4, 6, 8]).
+prg("[1, 2, 3, 4] map({$ * 2})", [2, 4, 6, 8]).
 prg("[1, 2, 3, 4] heads", [[1,2,3,4],[2,3,4],[3,4],[4]]).
 prg("\"elf\" reverse", `fle`).
 prg("\"some4digt02here\" keep(&digit), (_ first * 10) + _ last", 42).

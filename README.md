@@ -57,12 +57,12 @@ my            # reference current object in methods
 
 _             # reference to the value of the last statement
 
-\ $ * 2.      # function of arity 1
+{ $ * 2 }     # function of arity 1
 
 ["hello", "there"]  # list
 
 Elf{name,age} # object record definition
-Elf.greet: \ "Hello %s, my name is %s." fmt(my name, $). # define method on record
+Elf.greet: { "Hello %s, my name is %s." fmt(my name, $) } # define method on record
 
 elf greet("world") # call method
 

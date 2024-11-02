@@ -23,27 +23,28 @@ ex("if/else",
 
 # if without else returns nil
 # nil prints nothing
-ns do(\\ ($ > 10) if(\"big\") print.),
+ns do({($ > 10) if(\"big\") print}),
 
 \"---\" print,
 
 # then can be a value or a function
-ns do(\\ n:$, (n > 10) if(\\ \"%d is big\" fmt(n) print.).),
+ns do({n:$, (n > 10) if({\"%d is big\" fmt(n) print})}),
 
 \"---\" print,
 
 # second arg to if can be specified for else
-ns do(\\ ($ > 10) if(\"big\", $) print.)",
+ns do({ ($ > 10) if(\"big\", $) print })",
    nil).
 
 ex("FizzBuzz",
-   "1 to(100) do(\\ n:$, [15,3,5] map(\\ (n % $) = 0.) cond(\"FizzBuzz\",\"Fizz\",\"Buzz\", $) print.)", nil).
+   "1 to(100) do({n:$, [15,3,5] map({(n % $) = 0}) cond(\"FizzBuzz\",\"Fizz\",\"Buzz\", $) print})", nil).
 
 ex("FizzBuzz 2",
-   "1 to(100) do(\\
+   "1 to(100) do({
  fizz: ($ % 3) = 0,
  buzz: ($ % 5) = 0,
- (fizz or buzz) if(\\ (fizz if(\"Fizz\") ++ buzz if(\"Buzz\"))., $) print.)",
+ (fizz or buzz) if({ fizz if(\"Fizz\") ++ buzz if(\"Buzz\") }, $) print
+ })",
    nil).
 
 ex("Records",
@@ -51,7 +52,7 @@ ex("Records",
 Elf{name, age},
 
 # install a method on it
-Elf.greet: \\ \"Hello %s, my name is %s and I'm %d years old!\" fmt($, my name, my age).,
+Elf.greet: { \"Hello %s, my name is %s and I'm %d years old!\" fmt($, my name, my age)},
 
 # Make an instance
 Elf{name: \"Elfo\", age: 666},
