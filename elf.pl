@@ -352,10 +352,8 @@ method(filter, [H|T], [Fn], Result) -->
     { \+ falsy(Include) -> Result=[H|Rest]; Result=Rest }.
 
 method(call, Fn, Args, Result) -->
-    {writeln(call(Fn, Args))},
-    eval_all(Args, ArgVals),
-    {writeln(call_args(ArgVals))},
-    eval_call(Fn, ArgVals, Result).
+    {debug(call(Fn, Args))},
+    eval_call(Fn, Args, Result).
 
 method(Name, rec(My), Args, Result) -->
     { functor(My, Record, _),

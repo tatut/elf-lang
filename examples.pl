@@ -62,3 +62,44 @@ _ age(_ age + 1),
 
 # Call method on it
 _ greet(\"world\")", `Hello world, my name is Elfo and I'm 667 years old!`).
+
+ex("HTML generation",
+   "# Define record for element
+Elt{parent, tag, attrs, content},
+Text{text},
+
+Text.html: {my text},
+
+# render as html
+Elt.html: {
+ \"<%s\" fmt(my tag) ++
+ my attrs mapcat({\" %s='%s'\" fmt($ first, $ last) }) ++
+ \">\" ++
+ my content mapcat(&html) ++
+ \"</%s>\" fmt(my tag)
+},
+
+Elt.text: { my content(my content ++ [Text{text: $}]) },
+
+# Define a dynamic method handler to add child
+# this works by having elements as methods
+Elt.dynamic: {
+ n: Elt{tag: $},
+ args: $2,
+ (args len >= 1) if({n attrs(args first)}),
+ (args len = 2) if({args last call(n)}),
+ my content(my content ++ [n]),
+ n
+},
+
+# Use the HTML generation to output some markup
+
+Todo{label, complete},
+todos: [Todo{label:\"simple HTML generation\", complete: true},
+        Todo{label:\"web framework?\", complete: false}],
+
+h: Elt{tag: \"div\"},
+_ span ul([[\"class\",\"todos\"]],
+          { ul: $, todos do({ ul li([[\"class\", $ complete if(\"complete\", \"active\")]]) text($ label) }) }),
+h html",
+  `<div><span><ul class='todos'><li class='complete'>simple HTML generation</li><li class='active'>web framework?</li></ul></span></div>`).
