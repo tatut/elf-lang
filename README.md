@@ -1,6 +1,7 @@
-# Elf Helper programming language
+# Elf programming language
 
-This is the Elf Helper (eh) programming language.
+This is the Elf programming language.
+
 Designed to get help those elves get their xmas duties done
 without tripping into lava.
 
@@ -8,7 +9,7 @@ without tripping into lava.
 ## Syntax and evaluation
 
 Syntax is a little bit Smalltalkish, with Perlish implicit values and Clojurish
-functional programming with old style JavaScriptish prototypal inheritance.... all implemented lovingly in Prolog.
+functional programming with records & methods.... all implemented lovingly in Prolog.
 
 Like Smalltalk all method calls are evaluated first left to right, then all binary operators left to right.
 There is no operator precedence, use parenthesis to group math expressions.
@@ -33,7 +34,7 @@ Why not.
 Comments start with `#` and end in newline.
 
 ```
-"I'm an Elf"  # a string obviously
+"I'm an Elf"  # a string obviously (actually a list of ascii code ints)
 
 @?            # the ´?´ character (as ascii integer 62)
 
@@ -71,42 +72,10 @@ the_answer: 42 # assignment statement
 
 "naughty_list.txt" lines # call method lines on string
 
+# if is just a method taking 1 or 2 args (then,else)
+# if the value is a function it is called with the value
+# otherwise it is returned
+somebool if(thenblock)
+somebool ife(thenblock, elseblock)
 
 ```
-
-
-chars:
-@?  (the question mark char)
-
-
-dictionaries:
-{name: "Elf" age: 1024}
-
-boolean
-true/false
-
-if/else:
-
-somebool if(thenblock)
-somebool ife(thenblock elseblock)
-
-assign:
-
-42 -> foo
-
-fn def:
-
-\ $ * 2. -> double
-
-comments:
-
-# comment to end of line
-
-
-inline list:
-
-the , operator joins items into list:
-
-42, 666  will yield [42, 666] list
-
-more comma calls will add to the end
