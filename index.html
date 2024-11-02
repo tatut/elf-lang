@@ -6,6 +6,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.63.1/codemirror.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.63.1/codemirror.min.css"></link>
 
+    <style>
+      .stderr { color: red; }
+    </style>
+
     <script>
       function initCode() {
           (async () => {
@@ -54,8 +58,8 @@
           }
       }
 
-      function log(msg) {
-          document.getElementById("log").innerHTML += `<div>${msg}</div>`;
+      function log(msg,to) {
+          document.getElementById("log").innerHTML += `<div class="${to}">${msg}</div>`;
       }
 
     </script>

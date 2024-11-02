@@ -17,6 +17,9 @@ debug(Term) :- current_prolog_flag(elf_debug, D), debug(D, Term).
 debug(false, _).
 debug(true, T) :- writeln(T).
 
+% Print error and fail
+err(Fmt, Args) :- format(string(Err), Fmt, Args), writeln(user_error, Err), throw(stop_on_err(Fmt,Args)).
+
 ws --> "#", string_without("\n", _), ws.
 ws --> [W], { code_type(W, space) }, ws.
 ws --> [].
@@ -46,7 +49,7 @@ ref(R) --> symbol(R); arg_(R); prev(R).
 mref(mref(Name)) --> "&", csym(Name).
 mcall(mcall(Name, Args)) --> symbol_(Name), "(", ws, mcall_args(Args), ")".
 assign(assign(Name, Expr)) --> symbol_(Name), ":", ws, exprt(Expr,",").
-assign(assign(Name1, [Name2], Expr)) --> ref(Name1), ".", symbol_(Name2), ":",
+assign(assign(Name1, [Name2], Expr)) --> symbol_(Name1), ".", symbol_(Name2), ":",
                                          ws, exprt(Expr, ",").
 
 mcall_args([A|Args]) --> exprt(A, ",)"), ws, more_mcall_args(Args).
@@ -60,8 +63,7 @@ more_record_def_fields(Fields) --> ws, ",", record_def_fields(Fields).
 
 record_def_methods([]) --> ws.
 
-record_(record(Name, Fields)) --> symbol_(Name), {writeln(rec(Name))},
-                                  "{", record_fields(Fields), "}".
+record_(record(Name, Fields)) --> symbol_(Name), "{", record_fields(Fields), "}".
 record_fields([]) --> ws.
 record_fields([F-V|Fields]) --> ws, symbol_(F), ":", ws, exprt(V, ",}"), more_record_fields(Fields).
 more_record_fields([]) --> ws.
@@ -152,6 +154,8 @@ setprev(P) --> state(ctx(E,A,_), ctx(E,A,P)).
 setargs(A) --> state(ctx(E,_,P), ctx(E,A,P)).
 setenv(Name,Val) --> state(ctx(Env0,A,P), ctx(Env1,A,P)),
                      { put_dict(Name, Env0, Val, Env1) }.
+getenv(Name,Val) --> state(ctx(Env,_,_)),
+                     { (get_dict(Name, Env, Val), !); err('Name error: ~w', [Name]) }.
 dumpstate --> state(S), {debug(state(S))}.
 
 fail_nil(X) :- dif(X, nil).
@@ -159,7 +163,7 @@ fail_nil(X) :- dif(X, nil).
 eval([Expr|Methods], Out) --> eval(Expr, Val), eval_methods(Val, Methods, Out).
 
 eval(sub(Expr), Out) --> eval(Expr, Out).
-eval(sym(Sym), Val) --> state(ctx(Env,_,_)), { get_dict(Sym, Env, Val) }.
+eval(sym(Sym), Val) --> getenv(Sym,Val).
 eval(assign(Name, Expr), Val) -->
     eval(Expr, Val),
     state(ctx(Env0,A,P), ctx(Env1,A,P)),
@@ -243,8 +247,8 @@ eval_call(fun(_Arity, Stmts), Args, Result) -->
     pop_env.
 
 eval_call(mref(Name), [Me|Args], Result) -->
-    { length(Args, ArgC),
-      method(Name/ArgC) -> true; throw(no_such_method_error(name(Name),arity(ArgC))) },
+    %{ length(Args, ArgC),
+    %  method(Name/ArgC) -> true; throw(no_such_method_error(name(Name),arity(ArgC))) },
     method(Name, Me, Args, Result).
 
 % Eval a method defined on a record
@@ -309,10 +313,10 @@ method(filter, [H|T], [Fn], Result) -->
     method(filter, T, [Fn], Rest),
     { \+ falsy(Include) -> Result=[H|Rest]; Result=Rest }.
 
-method(Name, My, Args, Result) -->
+method(Name, rec(My), Args, Result) -->
     { functor(My, Record, _),
       record_method(Record, Name, Fun) },
-    eval_call_my(Fun, My, Args, Result).
+    eval_call_my(Fun, rec(My), Args, Result).
 
 % Any pure Prolog method, that doesn't need DCG evaluation context
 method(Method, Me, Args, Result) --> [], { method(Method, Me, Args, Result) }.
@@ -409,14 +413,14 @@ run_string(Input, Out) :-
     run_codes(Codes, Out).
 
 run_string_pretty(Input, Out) :-
-    catch((run_string(Input, Result),
-           with_output_to(string(Out),
-                          fmt:pretty(Result))),
-          Err,
-          Out = naughty(Err)).
+    run_string(Input, Result),
+    with_output_to(string(Out),
+                   fmt:pretty(Result)).
+
 
 
 :- begin_tests(elf).
+:- use_module(examples, [ex/3]).
 
 prg("foo: \"jas6sn0\", foo keep(&digit).", [6,0]).
 prg("[4, 2, 0, 6, 9] sum", 21).
@@ -439,6 +443,10 @@ prg("([\"foo\" len] first > 1) if(\"big\")", `big`).
 prg("Elf{age}, e: Elf{age:665}, e age(e age + 1)", rec('Elf'(666))).
 
 test(programs, [forall(prg(Source,Expected))]) :-
+    once(run_string(Source,Actual)),
+    Expected = Actual.
+
+test(examples, [forall(ex(_Name,Source,Expected))]) :-
     once(run_string(Source,Actual)),
     Expected = Actual.
 
