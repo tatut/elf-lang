@@ -104,6 +104,22 @@ Elf supports the following binary operators:
 - `and` boolean truth (true if both left and right hand sides are truthy, false otherwise)
 - `or` boolean or (true if either left or right hand side is truthy, false otherwise)
 
+# Records
+
+Elf supports records which have a predefined list of fields.
+Records can be instantiated by `RecordName{field1Name: field1Val, ...}` any fields not given a value will have the initial value `nil`.
+
+Record fields are automatically added as method to get/set the value.
+The 0-arity method gets the value and 1-arity sets it.
+
+Records also support user defined methods that are functions with the
+special name `my` referring to the record instance.
+
+There is a special method called `dynamic` that will be invoked for any
+methods not defined. This can be used for meta-programming.
+The method gets the name of the undefined method as string and a list
+of its arguments.
+
 # Standard library
 
 This section lists all builtin methods.

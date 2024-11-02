@@ -3,16 +3,9 @@
 :- use_module(library(dcg/high_order)).
 :- use_module(library(yall)).
 :- use_module(stdlib/fmt).
+:- use_module(record).
 :- set_prolog_flag(double_quotes, codes).
 :- set_prolog_flag(elf_debug, false).
-
-% Record definition: record_field(RecordName, Num, FieldName).
-% Records are stored as compound terms and mutated with nb_arg.
-% Fields also act as 0 arg methods that return the value
-:- dynamic record_field/3.
-
-% Record method definition: record_method(RecordName, MethodName, fun(...))
-:- dynamic record_method/3.
 
 debug(Term) :- current_prolog_flag(elf_debug, D), debug(D, Term).
 debug(false, _).
@@ -348,8 +341,9 @@ method(filter, [H|T], [Fn], Result) -->
 
 method(Name, rec(My), Args, Result) -->
     { functor(My, Record, _),
-      record_method(Record, Name, Fun) },
-    eval_call_my(Fun, rec(My), Args, Result).
+      get_record_method(Record, Name, Fun, Args, Args1) },
+    eval_call_my(Fun, rec(My), Args1, Result).
+
 
 % Any pure Prolog method, that doesn't need DCG evaluation context
 method(Method, Me, Args, Result) --> [], { method(Method, Me, Args, Result) }.
