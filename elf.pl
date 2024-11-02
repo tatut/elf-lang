@@ -351,6 +351,12 @@ method(filter, [H|T], [Fn], Result) -->
     method(filter, T, [Fn], Rest),
     { \+ falsy(Include) -> Result=[H|Rest]; Result=Rest }.
 
+method(call, Fn, Args, Result) -->
+    {writeln(call(Fn, Args))},
+    eval_all(Args, ArgVals),
+    {writeln(call_args(ArgVals))},
+    eval_call(Fn, ArgVals, Result).
+
 method(Name, rec(My), Args, Result) -->
     { functor(My, Record, _),
       get_record_method(Record, Name, Fun, Args, Args1) },
@@ -405,6 +411,8 @@ method(Field, rec(RecordInstance), [Val], rec(RecordInstance)) :-
     record_field(Record, I, Field),
     setarg(I, RecordInstance, Val).
 
+method('number?', N, [], Result) :- number(N) -> Result=true; Result=false.
+method('list?', L, [], Result) :- is_list(L) -> Result=true; Result=false.
 
 % add all methods here
 method(keep/1).
