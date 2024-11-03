@@ -53,7 +53,9 @@
           localStorage.setItem("elfcode", code);
           document.getElementById("log").innerHTML = ""; // clear log
           let q = Prolog.query("elf:run_string_pretty(Str, Result)", {Str: code});
-          document.getElementById('result').innerHTML = q.next().value.Result.v;
+          let r = q.next().value.Result.v;
+          console.log(r);
+          document.getElementById('result').innerHTML = r;
           q.close();
       }
 

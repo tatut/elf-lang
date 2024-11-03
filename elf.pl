@@ -293,14 +293,14 @@ eval_call(fun(ArgNames, Stmts), Args, Result) -->
     eval_stmts(nil, Stmts, Result), {debug(fn_result(Result))},
     pop_env.
 
-bind_args([], _) --> []. % extra arguments, might be $ references, don't care
-bind_args([A|Args], []) --> [], { err('Too few arguments provided, missing: ~w', [[A|Args]]) }.
-bind_args([N|Names],[V|Values]) --> setenv(N, V), bind_args(Names,Values).
-
 eval_call(mref(Name), [Me|Args], Result) -->
     %{ length(Args, ArgC),
     %  method(Name/ArgC) -> true; throw(no_such_method_error(name(Name),arity(ArgC))) },
     method(Name, Me, Args, Result).
+
+bind_args([], _) --> []. % extra arguments, might be $ references, don't care
+bind_args([A|Args], []) --> [], { err('Too few arguments provided, missing: ~w', [[A|Args]]) }.
+bind_args([N|Names],[V|Values]) --> setenv(N, V), bind_args(Names,Values).
 
 % Eval a method defined on a record
 eval_call_my(fun(_Arity, Stmts), My, Args, Result) -->

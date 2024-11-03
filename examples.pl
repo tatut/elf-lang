@@ -37,7 +37,7 @@ ns do({ ($ > 10) if(\"big\", $) print })",
    nil).
 
 ex("FizzBuzz",
-   "1 to(100) do({n:$, [15,3,5] map({(n % $) = 0}) cond(\"FizzBuzz\",\"Fizz\",\"Buzz\", $) print})", nil).
+   "1 to(100) do({n| [15,3,5] map({(n % $) = 0}) cond(\"FizzBuzz\",\"Fizz\",\"Buzz\", $) print})", nil).
 
 ex("FizzBuzz 2",
    "1 to(100) do({
@@ -97,9 +97,11 @@ Elt.dynamic: {
 Todo{label, complete},
 todos: [Todo{label:\"simple HTML generation\", complete: true},
         Todo{label:\"web framework?\", complete: false}],
-
 h: Elt{tag: \"div\"},
-_ span ul([[\"class\",\"todos\"]],
-          { ul: $, todos do({ ul li([[\"class\", $ complete if(\"complete\", \"active\")]]) text($ label) }) }),
+_ ul([[\"class\",\"todos\"]],
+      {ul| todos do({ li: ul li([[\"class\", $ complete if(\"complete\", \"active\")]]),
+                      li input([[\"type\",\"checkbox\"]] ++ $ complete if([[\"checked\",\"1\"]])),
+                      li text($ label) }) }),
 h html",
-  `<div><span><ul class='todos'><li class='complete'>simple HTML generation</li><li class='active'>web framework?</li></ul></span></div>`).
+% FIXME: should support self closing tags, but not important for demo
+  `<div><ul class='todos'><li class='complete'><input type='checkbox' checked='1'></input>simple HTML generation</li><li class='active'><input type='checkbox'></input>web framework?</li></ul></div>`).
