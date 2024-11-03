@@ -85,7 +85,12 @@ more_map_fields([]) --> ws.
 more_map_fields(Fields) --> ws, ",", map_fields(Fields).
 
 
-fun(fun(Arity, Statements)) --> "{", statements(Statements), "}". % fixme: determine arity
+fun(fun(ArgNames, Statements)) -->
+    "{", optional(fun_argnames(ArgNames), {ArgNames=[]}),
+    statements(Statements), "}".
+
+% Argument names: comma separated symbols ending with |
+fun_argnames(ArgNames) --> sequence(ws, symbol_, (ws, ",", ws), (ws, "|"), ArgNames).
 
 lst(list(Items)) --> "[", list_items(Items), ws, "]".
 list_items([]) --> [].
@@ -280,14 +285,17 @@ eval_method(In, sym(Name), Out) --> method(Name, In, [], Out).
 eval_all([],[]) --> [].
 eval_all([In|Ins], [Out|Outs]) --> eval(In, Out), {debug(arg(In,Out))}, eval_all(Ins,Outs).
 
-eval_call(fun(_Arity, Stmts), Args, Result) -->
-    %{ debug(call_fn_ars(Arity,Stmts,Args)), length(Args, ArgC),
-    %  (Arity = ArgC) -> true; throw(wrong_arity(expected(Arity),args(ArgC))) },
+eval_call(fun(ArgNames, Stmts), Args, Result) -->
     push_env,
     setargs(Args),
+    bind_args(ArgNames, Args),
     dumpstate,
     eval_stmts(nil, Stmts, Result), {debug(fn_result(Result))},
     pop_env.
+
+bind_args([], _) --> []. % extra arguments, might be $ references, don't care
+bind_args([A|Args], []) --> [], { err('Too few arguments provided, missing: ~w', [[A|Args]]) }.
+bind_args([N|Names],[V|Values]) --> setenv(N, V), bind_args(Names,Values).
 
 eval_call(mref(Name), [Me|Args], Result) -->
     %{ length(Args, ArgC),
@@ -534,7 +542,7 @@ prg("([\"foo\" len] first > 1) if(\"big\")", `big`).
 prg("Elf{age}, e: Elf{age:665}, e age(e age + 1)", 'Elf'{age:666}).
 prg("[\"foo\",\"bar\",\"other\"] group(&len) at(5)", [`other`]).
 prg("m: %{\"foo\": 40} put(\"bar\",2), m at(\"foo\") + m at(\"bar\")", 42).
-
+prg("{a,b| a + b} call(40,2)", 42).
 test(programs, [forall(prg(Source,Expected))]) :-
     once(run_string(Source,Actual)),
     Expected = Actual.
