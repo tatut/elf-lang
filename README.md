@@ -59,6 +59,9 @@ _             # reference to the value of the last statement
 
 { $ * 2 }     # function of arity 1
 
+{a,b| a + b}  # function of arity 2 with named arguments
+
+
 ["hello", "there"]  # list
 
 Elf{name,age} # object record definition
