@@ -52,10 +52,9 @@
           let code = editor.getDoc().getValue();
           localStorage.setItem("elfcode", code);
           document.getElementById("log").innerHTML = ""; // clear log
-          for(let r of Prolog.query("elf:run_string_pretty(Str, Result)", {Str: code})) {
-              console.log(r.Result);
-              document.getElementById('result').innerHTML = r.Result;
-          }
+          let q = Prolog.query("elf:run_string_pretty(Str, Result)", {Str: code});
+          document.getElementById('result').innerHTML = q.next().value.Result.v;
+          q.close();
       }
 
       function log(msg,to) {

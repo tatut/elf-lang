@@ -70,6 +70,8 @@ Elf{name: "Jolly Twinkletoes", age: 1607} # an object
 
 Elf new("Scrappy Fairytoes", 666) # programmatic construction
 
+%{"foo": 42} # associative key/value map
+
 the_answer: 42 # assignment statement
 
 "naughty_list.txt" lines # call method lines on string

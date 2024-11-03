@@ -3,7 +3,8 @@
 :- use_module(library(dcg/high_order)).
 :- use_module(library(yall)).
 :- use_module(stdlib/fmt).
-:- use_module(record).
+:- use_module(elf_record).
+:- use_module(elf_map).
 :- set_prolog_flag(double_quotes, codes).
 :- set_prolog_flag(elf_debug, false).
 
@@ -77,6 +78,13 @@ record_fields([F-V|Fields]) --> ws, symbol_(F), ":", ws, exprt(V), more_record_f
 more_record_fields([]) --> ws.
 more_record_fields(Fields) --> ws, ",", record_fields(Fields).
 
+map_new(map_new(Fields)) --> "%{", map_fields(Fields), "}".
+map_fields([]) --> ws.
+map_fields([F-V|Fields]) --> ws, value(F), ":", ws, exprt(V), more_map_fields(Fields).
+more_map_fields([]) --> ws.
+more_map_fields(Fields) --> ws, ",", map_fields(Fields).
+
+
 fun(fun(Arity, Statements)) --> "{", statements(Statements), "}". % fixme: determine arity
 
 lst(list(Items)) --> "[", list_items(Items), ws, "]".
@@ -103,7 +111,7 @@ op_(op(or)) --> "or".
 end(End), [Ch] --> [Ch], { memberchk(Ch, End) }.
 end(_) --> ws, eos. % whitespace at the end also closes statements
 
-expr(A) --> value(A); symbol(A); arg_(A); lst(A); mref(A); prev(A); fun(A); op_(A); mcall(A); record_def(A); record_(A).
+expr(A) --> value(A); symbol(A); arg_(A); lst(A); mref(A); prev(A); fun(A); op_(A); mcall(A); record_def(A); record_(A); map_new(A).
 expr(sub(S)) --> "(", exprt(S), ")".
 
 exprs([]) --> [].
@@ -209,17 +217,26 @@ eval(record_def(Name, Fields, _Methods), record_ref(Name)) -->
       maplist({Name,Fields}/[I]>>(nth1(I, Fields, F),
                                   asserta(record_field(Name, I, F))), Is) }.
 
-eval(record(Name, Fields), rec(Instance)) -->
-    { aggregate(max(I), record_field(Name,I,_), FieldCount),
-      length(InitFieldVals, FieldCount), maplist(=(nil), InitFieldVals),
-      compound_name_arguments(Instance, Name, InitFieldVals) },
-    eval_record_fields(Name, Instance, Fields).
+eval(record(Name, Fields), R) -->
+    { record_new(Name, R) },
+    eval_record_fields(Name, R, Fields).
+
+eval(map_new(Fields), Map) -->
+    { map_new(Map) },
+    eval_map_fields(Map, Fields).
+
+eval_map_fields(_, []) --> [].
+eval_map_fields(Map, [KeyExpr-ValExpr|Fields]) -->
+    eval(KeyExpr, Key),
+    eval(ValExpr, Val),
+    { map_put(Map, Key, Val) },
+    eval_map_fields(Map, Fields).
 
 eval_record_fields(_, _, []) --> [].
 eval_record_fields(Record, Instance, [Name-ValExpr|Fields]) -->
     eval(ValExpr, Val),
-    { record_field(Record, N, Name),
-      nb_setarg(N, Instance, Val) },
+    { record_field(Record, _, Name),
+      record_set(Instance, Name, Val) },
     eval_record_fields(Record, Instance, Fields).
 
 eval_op(L,+,R,V) :- V is L + R.
@@ -331,6 +348,15 @@ method(map, [], _, []) --> [].
 method(map, [H|T], [Fn], [Hv|Tvs]) -->
     eval_call(Fn, [H], Hv),
     method(map, T, [Fn], Tvs).
+method(map, map(ID0), [Fn], map(ID1)) -->
+    { map_new(map(ID1)),
+      map_pairs(map(ID0), Pairs) },
+    method('%mapvals'(Fn), map(ID1), Pairs, map(ID1)).
+method('%mapvals'(_), _, [], _) --> [].
+method('%mapvals'(Fn), map(ID), [K-V|KVs], map(ID)) -->
+    eval_call(Fn, [V], V1),
+    { map_put(map(ID), K, V1) },
+    method('%mapvals'(Fn), map(ID), KVs, map(ID)).
 
 method(mapcat, nil, _, []) --> [].
 method(mapcat, [], _, []) --> [].
@@ -339,6 +365,18 @@ method(mapcat, [H|T], [Fn], Result) -->
     method(map, T, [Fn], Tvs),
     { append([Hv|Tvs], Result) }.
 
+method(group, nil, _, M) --> [], { map_new(M) }.
+method(group, [], _, M) --> [], { map_new(M) }.
+method(group, [X|Xs], [Fn], M) -->
+    { map_new(M) },
+    method('%group'(Fn), M, [X|Xs], M).
+method('%group'(_), M, [], M) --> [].
+method('%group'(Fn), M, [X|Xs], M) -->
+    eval_call(Fn, [X], Group),
+    { map_get(M, Group, Current),
+      eval_op(Current,'++',[X], New),
+      map_put(M, Group, New) },
+    method('%group'(Fn), M, Xs, M).
 
 method(do, nil, _, nil) --> [].
 method(do, [], _, nil) --> [].
@@ -355,11 +393,9 @@ method(call, Fn, Args, Result) -->
     {debug(call(Fn, Args))},
     eval_call(Fn, Args, Result).
 
-method(Name, rec(My), Args, Result) -->
-    { functor(My, Record, _),
-      get_record_method(Record, Name, Fun, Args, Args1) },
-    eval_call_my(Fun, rec(My), Args1, Result).
-
+method(Name, rec(Record,ID), Args, Result) -->
+    { get_record_method(Record, Name, Fun, Args, Args1) },
+    eval_call_my(Fun, rec(Record,ID), Args1, Result).
 
 % Any pure Prolog method, that doesn't need DCG evaluation context
 method(Method, Me, Args, Result) --> [], { method(Method, Me, Args, Result) }.
@@ -396,18 +432,22 @@ method(split, Lst, [Sep], Result) :-
         Result=[Start|RestSplit])
     ; Result=[Lst].
 method(len, nil, [], 0).
-method(len, Lst, [], Result) :- length(Lst, Result).
+method(len, [], [], 0).
+method(len, [L|Lst], [], Result) :- length([L|Lst], Result).
+method(len, map(ID), [], Result) :- map_size(map(ID), Result).
+method(at, map(ID), [Key], Result) :- map_get(map(ID), Key, Result).
+method(put, map(ID), [Key, Val | KVs], R) :-
+    map_put(map(ID), Key, Val),
+    method(put, map(ID), KVs, R).
+method(put, map(ID), [], map(ID)).
 
 % Record fields act as getter
-method(Field, rec(RecordInstance), [], Val) :-
-    functor(RecordInstance, Record, _),
-    record_field(Record, I, Field),
-    arg(I, RecordInstance, Val).
+method(Field, rec(Record,ID), [], Val) :- record_get(rec(Record,ID), Field, Val).
+
 % Record fields with 1 parameter act as setter
-method(Field, rec(RecordInstance), [Val], rec(RecordInstance)) :-
-    functor(RecordInstance, Record, _),
-    record_field(Record, I, Field),
-    setarg(I, RecordInstance, Val).
+method(Field, rec(Record,ID), [Val], rec(Record,ID)) :-
+    record_field(Record, _, Field),
+    record_set(rec(Record,ID), Field, Val).
 
 method('number?', N, [], Result) :- number(N) -> Result=true; Result=false.
 method('list?', L, [], Result) :- is_list(L) -> Result=true; Result=false.
@@ -440,8 +480,8 @@ falsy(false).
 %% Top level runner interface
 
 exec(Stmts, Out) :-
-    retractall(record_field(_,_,_)),
-    retractall(record_method(_,_,_)),
+    record_cleanup,
+    map_cleanup,
     phrase(eval_stmts(nil,Stmts,Out), [ctx(env{},[],nil)], _).
 
 run(File) :-
@@ -452,7 +492,12 @@ run_codes(Input, Out) :-
     %call_with_time_limit(1, (phrase(statements(Stmts), Input))),
     once(phrase(statements(Stmts), Input)),
     debug(parsed_program(Stmts)),
-    exec(Stmts,Out).
+    once(exec(Stmts,Out1)),
+    format_result(Out1, Out).
+
+format_result(rec(Rec,ID), Out) :- record_dict(rec(Rec,ID), Out), !.
+format_result(map(ID), Out) :- map_pairs(map(ID), Out), !.
+format_result(Out, Out).
 
 run_string(Input, Out) :-
     string_codes(Input, Codes),
@@ -486,7 +531,9 @@ prg("\"foo, quux, !\" split(\", \")",
     [`foo`, `quux`, `!`]).
 prg("(\"foo\" ++ \"bar\") len", 6).
 prg("([\"foo\" len] first > 1) if(\"big\")", `big`).
-prg("Elf{age}, e: Elf{age:665}, e age(e age + 1)", rec('Elf'(666))).
+prg("Elf{age}, e: Elf{age:665}, e age(e age + 1)", 'Elf'{age:666}).
+prg("[\"foo\",\"bar\",\"other\"] group(&len) at(5)", [`other`]).
+prg("m: %{\"foo\": 40} put(\"bar\",2), m at(\"foo\") + m at(\"bar\")", 42).
 
 test(programs, [forall(prg(Source,Expected))]) :-
     once(run_string(Source,Actual)),
