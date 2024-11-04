@@ -3,7 +3,8 @@
   <head>
 
     <script src="https://SWI-Prolog.github.io/npm-swipl-wasm/4/0/10/index.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.63.1/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.1/ace.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.1/ext-language_tools.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.63.1/codemirror.min.css"></link>
 
     <style>
@@ -12,10 +13,31 @@
 
     <script>
       function initCode() {
+          let lt = ace.require('ace/ext/language_tools');
+          lt.addCompleter({
+              identifierRegexps: [ /[\\:\\.\\w\\d\\/\\-\\_\\$\\?\\*]+/ ],
+              getCompletions: function(editor, session, pos, prefix, callback) {
+                  if (prefix.length === 0) { callback(null, []); }
+                  else {
+                      let q = Prolog.query("elf_dev:method_completion(Prefix, Name)", {Prefix: prefix});
+                      let r;
+                      let cs = [];
+                      do {
+                          r = q.next();
+                          if(r.value) {
+                              let n = r.value.Name;
+                              cs.push({name: n, value: n, score: 100, meta: "method"});
+                          }
+
+                      } while(!r.done);
+                      callback(null, cs);
+                  }
+              }});
+
           (async () => {
               const swipl = await SWIPL({on_output: log, arguments: ["-q"]});
               window.Prolog = swipl.prolog;
-              swipl.prolog.consult("elf","examples")
+              swipl.prolog.consult("elf","examples","elf_dev")
                   .then((ok,err) => {
                       let opts = document.getElementById("examples");
                       opts.onchange = _=>{
@@ -23,7 +45,7 @@
                           let code = Prolog.query(
                               "examples:ex(N,Code)",
                               {N: new Prolog.String(opts.value)}).once().Code.v;
-                          editor.getDoc().setValue(code); };
+                          editor.setValue(code); };
 
                       let q = Prolog.query("examples:ex(N,_)");
                       let r;
@@ -31,32 +53,51 @@
                           r = q.next();
                           opts.add(new Option(r.value.N.v, r.value.N.v));
                       } while(!r.done);
+                      q.close();
                   });
           })();
 
           let code = document.getElementById("code");
           code.value = localStorage.getItem("elfcode") || "# hello elf helper\n\"Hello World!\" print";
-          var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
-              lineNumbers: true,
-              autoCLoseBrackets: true,
-              matchBrackets: true
+          var editor = ace.edit("code");
+          editor.commands.addCommand({
+              name: 'eval',
+              bindKey: {
+                  win: 'Ctrl-Enter',
+                  mac: 'Command-Enter'
+              },
+              exec: function(editor) {
+                  _eval(editor.session.getValue());
+              },
+              readOnly: true
+          });
+          editor.setTheme("ace/theme/tomorrow");
+          editor.setOptions({
+              enableBasicAutocompletion: true,
+              enableSnippets: true,
+              enableLiveAutocompletion: true,
+              liveAutocompletionDelay: 200,
+              liveAutocompletionThreshold: 1
           });
 
           window.editor = editor;
       }
 
-      window._FRAME=0;
+      function _eval(code) {
+          localStorage.setItem("elfcode", code);
+          document.getElementById("log").innerHTML = ""; // clear log
+          console.log("CODE", code);
+          let q = Prolog.query("elf:run_string_pretty(Str, Result)", {Str: code});
+          let r = q.next();
+          console.log(r);
+          document.getElementById('result').innerHTML = r.value.Result.v;
+          q.close();
+      }
 
       function run() {
           document.getElementById('result').innerHTML = "";
-          let code = editor.getDoc().getValue();
-          localStorage.setItem("elfcode", code);
-          document.getElementById("log").innerHTML = ""; // clear log
-          let q = Prolog.query("elf:run_string_pretty(Str, Result)", {Str: code});
-          let r = q.next().value.Result.v;
-          console.log(r);
-          document.getElementById('result').innerHTML = r;
-          q.close();
+          let code = editor.getValue();
+          _eval(code);
       }
 
       function log(msg,to) {
@@ -70,7 +111,7 @@
     <select id="examples" title="Examples">
       <option value="">-- select example --</option>
     </select>
-    <textarea id="code">[1 2 4] sum</textarea>
+    <pre id="code" style="height: 50vh; width: 75vw;">[1 2 4] sum</pre>
     <div>
       <button onclick="run()">run</button>
     </div>

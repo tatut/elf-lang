@@ -471,10 +471,21 @@ method(not, X, [], false) :- \+ falsy(X).
 
 
 % add all methods here
+method(if/1). method(if/2).
+method(cond/_).
 method(keep/1).
+method(map/1).
+method(mapcat/1).
+method(group/1).
 method(print/0).
 method(digit/0).
 method(map/1).
+method(do/1).
+method(sum/0).
+method(filter/1).
+method(call/_).
+method(digit/1).
+method(print/0).
 method(sum/0).
 method(first/0).
 method(last/0).
@@ -484,13 +495,19 @@ method(heads/0).
 method(reverse/0).
 method(to/1).
 method(to/2).
-method(filter/1).
+method(fmt/_).
 method(join/1).
 method(split/1).
-method(if/1).
-method(if/2).
 method(len/0).
-method(cond/_).
+method(at/1).
+method(put/_).
+method('number?'/0).
+method('list?'/0).
+method(floor/0).
+method(ceil/0).
+method(round/0).
+method(not/0).
+
 
 falsy(nil).
 falsy(false).
