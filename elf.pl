@@ -552,7 +552,7 @@ repl :-
         ((catch(exec(Stmts, Result, ctx(E,A,P), ctx(E1,_,_)),
                 _Err,
                 fail))
-         -> (with_output_to(string(Out), fmt:pretty(Result)),
+         -> (with_output_to(string(Out), once(fmt:prettyln(Result))),
              format('~w\n', [Out]),
              nb_setarg(1, State, ctx(E1,[],Result)))
         ; format('Execution failed ¯\\_(ツ)_/¯\n',[])),

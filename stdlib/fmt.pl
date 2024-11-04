@@ -1,5 +1,7 @@
 % Formatted output
 :- module(fmt, [fmt/3]).
+:- use_module(elf_map).
+:- use_module(library(yall)).
 
 fmt(PatternCs, Args, Out) :-
     string_codes(Pattern, PatternCs),
@@ -36,6 +38,18 @@ fmt_([Spec|_], []) :-
 
 printable(N) :- integer(N), between(32, 126, N).
 
-pretty(X) :- is_list(X), maplist(printable, X), string_codes(Str, X), writeln(Str), !.
+pretty(X) :- is_list(X), maplist(printable, X), string_codes(Str, X),
+             format('"~s"', [Str]), !.
+pretty(X) :- is_list(X), append(Items, [LastItem], X),
+             format('['), maplist([X]>>(pretty(X), format(', ')), Items),
+             pretty(LastItem), format(']'), !.
 pretty(nil) :- !. % output nothing on nil
-pretty(X) :- writeln(X).
+pretty(map(ID)) :- format('%{'),
+                   map_pairs(map(ID), AllPairs),
+                   append(Pairs, [LastKey-LastVal], AllPairs),
+                   maplist([K-V]>>(pretty(K), format(': '), pretty(V), format(',\n  ')), Pairs),
+                   pretty(LastKey), format(': '), pretty(LastVal), format('}').
+
+pretty(X) :- write(X).
+
+prettyln(X) :- pretty(X), nl.
