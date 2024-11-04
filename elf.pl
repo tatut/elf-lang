@@ -466,6 +466,11 @@ method(floor, N, [], Result) :- Result is floor(N).
 method(ceil, N, [], Result) :- Result is ceil(N).
 method(round, N, [], Result) :- Result is round(N).
 
+method(not, false, [], true) :- !.
+method(not, nil, [], true) :- !.
+method(not, X, [], false) :- \+ falsy(X).
+
+
 % add all methods here
 method(keep/1).
 method(print/0).
