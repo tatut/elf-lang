@@ -1,12 +1,15 @@
-:- module(elf, [run/1, run_codes/2, run_string/2, run_string_pretty/2]).
+:- module(elf, [run/1, run_codes/2, run_string/2, run_string_pretty/2, repl/0]).
 :- use_module(library(dcg/basics)).
 :- use_module(library(dcg/high_order)).
 :- use_module(library(yall)).
+:- use_module(library(readutil)).
 :- use_module(stdlib/fmt).
 :- use_module(elf_record).
 :- use_module(elf_map).
 :- set_prolog_flag(double_quotes, codes).
 :- set_prolog_flag(elf_debug, false).
+
+version('0.1').
 
 debug(Term) :- current_prolog_flag(elf_debug, D), debug(D, Term).
 debug(false, _).
@@ -432,7 +435,6 @@ method(join, Lst, [Sep], Out) :-
     foldl({Sep}/[Item,Acc,Out]>>append([Acc, Sep, Item], Out),
           Lst, [], Intermediate),
     % Remove the separator before first element
-    writeln(int(Intermediate)),
     append(Sep, Out, Intermediate).
 method(split, Lst, [Sep], Result) :-
     once(append([Start, Sep, Rest], Lst))
@@ -459,6 +461,10 @@ method(Field, rec(Record,ID), [Val], rec(Record,ID)) :-
 
 method('number?', N, [], Result) :- number(N) -> Result=true; Result=false.
 method('list?', L, [], Result) :- is_list(L) -> Result=true; Result=false.
+
+method(floor, N, [], Result) :- Result is floor(N).
+method(ceil, N, [], Result) :- Result is ceil(N).
+method(round, N, [], Result) :- Result is round(N).
 
 % add all methods here
 method(keep/1).
@@ -487,10 +493,16 @@ falsy(false).
 
 %% Top level runner interface
 
+initial_ctx(ctx(env{},[],nil)).
+
 exec(Stmts, Out) :-
     record_cleanup,
     map_cleanup,
-    phrase(eval_stmts(nil,Stmts,Out), [ctx(env{},[],nil)], _).
+    initial_ctx(Ctx),
+    phrase(eval_stmts(nil,Stmts,Out), [Ctx], _).
+
+exec(Stmts, Out, ctx(E,A,P), CtxOut) :-
+    phrase(eval_stmts(P, Stmts, Out), [ctx(E,A,P)], [CtxOut]).
 
 run(File) :-
     once(phrase_from_file(stmts(Stmts), File)),
@@ -516,6 +528,31 @@ run_string_pretty(Input, Out) :-
     with_output_to(string(Out),
                    fmt:pretty(Result)).
 
+repl_input(Codes) :-
+    read_line_to_codes(user_input,Codes),
+    (Codes = end_of_file -> halt; true).
+
+repl :-
+    record_cleanup,
+    map_cleanup,
+    initial_ctx(Ctx0),
+    State = state(Ctx0),
+    version(V),
+    format('Welcome to Elf REPL (v~w).\nExit with Ctrl-d.\nNo one is coming to help you, have fun!\n\n', [V]),
+    repeat,
+    format("elf> ",[]),
+    repl_input(Codes),
+    (phrase(elf:statements(Stmts), Codes)
+    -> (arg(1, State, ctx(E,A,P)),
+        ((catch(exec(Stmts, Result, ctx(E,A,P), ctx(E1,_,_)),
+                _Err,
+                fail))
+         -> (with_output_to(string(Out), fmt:pretty(Result)),
+             format('~w\n', [Out]),
+             nb_setarg(1, State, ctx(E1,[],Result)))
+        ; format('Execution failed ¯\\_(ツ)_/¯\n',[])),
+        fail)
+    ; (format('Parse error\n', []), fail)).
 
 
 :- begin_tests(elf).
