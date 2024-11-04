@@ -3,7 +3,7 @@
 :- use_module(library(dcg/high_order)).
 :- use_module(library(yall)).
 :- use_module(library(readutil)).
-:- use_module(stdlib/fmt).
+:- use_module(elf_fmt).
 :- use_module(elf_record).
 :- use_module(elf_map).
 :- set_prolog_flag(double_quotes, codes).
@@ -413,7 +413,7 @@ method(Method, Me, Args, Result) --> [], { method(Method, Me, Args, Result) }.
 
 method(digit, N, [], nil) :- \+ between(48, 57, N).
 method(digit, N, [], D) :- between(48,57,N), D is N - 48.
-method(print, Me, _, Me) :- fmt:pretty(Me).
+method(print, Me, _, Me) :- outputln(Me).
 method(sum, Lst, [], Result) :- sum_list(Lst, Result).
 method(first, [H|_], [], H).
 method(last, Lst, [], Last) :- last(Lst, Last).
@@ -429,8 +429,7 @@ method(reverse, Lst, [], Rev) :- reverse(Lst,Rev).
 method(to, From, [To], Lst) :- findall(N, between(From,To,N), Lst).
 method(to, From, [To, _], []) :- From > To.
 method(to, From, [To, Inc], [From|Rest]) :- From1 is From + Inc, method(to, From1, [To, Inc], Rest).
-method(fmt, PatternCs, Args, Out) :-
-    fmt:fmt(PatternCs, Args, Out).
+method(fmt, PatternCs, Args, Out) :- fmt(PatternCs, Args, Out).
 method(join, Lst, [Sep], Out) :-
     foldl({Sep}/[Item,Acc,Out]>>append([Acc, Sep, Item], Out),
           Lst, [], Intermediate),
@@ -531,7 +530,7 @@ run_string(Input, Out) :-
 run_string_pretty(Input, Out) :-
     run_string(Input, Result),
     with_output_to(string(Out),
-                   fmt:pretty(Result)).
+                   prettyln(Result)).
 
 repl_input(Codes) :-
     read_line_to_codes(user_input,Codes),

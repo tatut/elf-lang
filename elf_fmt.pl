@@ -1,5 +1,5 @@
 % Formatted output
-:- module(fmt, [fmt/3]).
+:- module(fmt, [fmt/3, pretty/1, prettyln/1, output/1, outputln/1]).
 :- use_module(elf_map).
 :- use_module(elf_record).
 :- use_module(library(yall)).
@@ -38,6 +38,12 @@ fmt_([Spec|_], []) :-
     throw(too_few_arguments_to_fmt).
 
 printable(N) :- integer(N), between(32, 126, N).
+
+output(X) :- is_list(X), maplist(printable, X), writef('%s',[X]), !.
+output(nil) :- !. % nil prints nothing (unless pretty printing)
+output(X) :- writef('%w', [X]).
+
+outputln(X) :- output(X), nl.
 
 pretty(X) :- is_list(X), maplist(printable, X), string_codes(Str, X),
              format('"~s"', [Str]), !.
