@@ -1,6 +1,7 @@
 % Formatted output
 :- module(fmt, [fmt/3]).
 :- use_module(elf_map).
+:- use_module(elf_record).
 :- use_module(library(yall)).
 
 fmt(PatternCs, Args, Out) :-
@@ -49,7 +50,23 @@ pretty(map(ID)) :- format('%{'),
                    append(Pairs, [LastKey-LastVal], AllPairs),
                    maplist([K-V]>>(pretty(K), format(': '), pretty(V), format(',\n  ')), Pairs),
                    pretty(LastKey), format(': '), pretty(LastVal), format('}').
+pretty(rec(Record,ID)) :-
+    format('~w{', [Record]),
+    pad(Record, Pad),
+    findall(Field-Value, (record_field(Record, _, Field),
+                          record_data(ID, Field, Value)),
+            FieldVals),
+    append(FVs,[LastField-LastVal], FieldVals),
+    maplist({Pad}/[F-V]>>(format('~w: ', [F]), pretty(V), format(',~n~s', [Pad])), FVs),
+    format('~w: ',[LastField]), pretty(LastVal), format('}').
+
 
 pretty(X) :- write(X).
 
 prettyln(X) :- pretty(X), nl.
+
+pad(Atom, Pad) :-
+    atom_length(Atom, L),
+    L1 is L + 1,
+    length(Pad, L1),
+    maplist(=(32), Pad).
