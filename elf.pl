@@ -586,7 +586,7 @@ repl :-
     initial_ctx(Ctx0),
     State = state(Ctx0),
     version(V),
-    format('Welcome to Elf REPL (v~w).\nExit with Ctrl-d.\nNo one is coming to help you, have fun!\n\n', [V]),
+    format('Welcome to Elf REPL (v~w).\nExit with Ctrl-d.\nNo one is coming to help you... have fun!\n\n', [V]),
     repeat,
     format("elf> ",[]),
     repl_input(Codes),
