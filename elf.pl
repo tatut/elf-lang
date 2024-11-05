@@ -319,16 +319,16 @@ eval_if(_, Then, Then) --> [], { \+ is_callable(Then) }.
 eval_if(Bool, Then, Result) --> { is_callable(Then) },
                                 eval_call(Then, [Bool], Result).
 
-foldfn(nil, _, EmptyVal, _, _, EmptyVal) --> [].
-foldfn([], _, EmptyVal, _, _, EmptyVal) --> [].
-foldfn([X|Xs], Fn, _, InitialVal, AccumulateGoal, Result) -->
-    foldfn_([X|Xs], Fn, InitialVal, AccumulateGoal, Result).
+foldfn(nil, _, EmptyVal, _, _, _, EmptyVal) --> [].
+foldfn([], _, EmptyVal, _, _, _, EmptyVal) --> [].
+foldfn([X|Xs], Fn, _, InitialVal, AccumulateGoal, Finalize, Result) -->
+    foldfn_([X|Xs], Fn, InitialVal, AccumulateGoal, Finalize, Result).
 
-foldfn_([], _, Cur, _, Cur) --> [].
-foldfn_([X|Xs], Fn, Cur, Accumulate, Result) -->
+foldfn_([], _, Cur, _, Finalize, Result) --> [], { call(Finalize, Cur, Result) }.
+foldfn_([X|Xs], Fn, Cur, Accumulate, Finalize, Result) -->
     eval_call(Fn, [X], Val),
     { call(Accumulate, Cur, Val, Cur1) },
-    foldfn_(Xs, Fn, Cur1, Accumulate, Result).
+    foldfn_(Xs, Fn, Cur1, Accumulate, Finalize, Result).
 
 method(if, nil, [_], nil) -->  [].
 method(if, false, [_], nil) -->  [].
@@ -353,17 +353,11 @@ method(cond, [B|_], [A|_], Result) -->
     { \+ falsy(B) },
     eval_if(B, A, Result).
 
-method(keep, nil, _, []) --> [].
-method(keep, [], [_], []) --> [].
-method(keep, [H|T], [Fn], Result) -->
-    eval_call(Fn, [H], Hv),
-    method(keep, T, [Fn], Tvs),
-    { \+ falsy(Hv) -> Result=[Hv|Tvs]; Result=Tvs }.
-method(map, nil, _, []) --> [].
-method(map, [], _, []) --> [].
-method(map, [H|T], [Fn], [Hv|Tvs]) -->
-    eval_call(Fn, [H], Hv),
-    method(map, T, [Fn], Tvs).
+method(keep, Lst, [Fn], Result) -->
+    foldfn(Lst, Fn, [], [], keep_, reverse, Result).
+method(map, Lst, [Fn], Result) -->
+    foldfn(Lst, Fn, [], [], map_, reverse, Result).
+
 method(map, map(ID0), [Fn], map(ID1)) -->
     { map_new(map(ID1)),
       map_pairs(map(ID0), Pairs) },
@@ -390,7 +384,7 @@ method(mapcat, [H|T], [Fn], Result) -->
     method(map, T, [Fn], Tvs),
     { append([Hv|Tvs], Result) }.
 
-method(sum, Lst, [Fn], Result) --> foldfn(Lst, Fn, 0, 0, plus, Result).
+method(sum, Lst, [Fn], Result) --> foldfn(Lst, Fn, 0, 0, plus, '=', Result).
 
 
 method(group, nil, _, M) --> [], { map_new(M) }.
@@ -406,11 +400,9 @@ method('%group'(Fn), M, [X|Xs], M) -->
       map_put(M, Group, New) },
     method('%group'(Fn), M, Xs, M).
 
-method(do, nil, _, nil) --> [].
-method(do, [], _, nil) --> [].
-method(do, [H|T], [Fn], nil) -->
-    eval_call(Fn, [H], _),
-    method(do, T, [Fn], nil).
+method(do, Lst, [Fn], Result) -->
+    foldfn(Lst, Fn, nil, nil, do_, '=', Result).
+
 method(filter, [], _, []) --> [].
 method(filter, [H|T], [Fn], Result) -->
     eval_call(Fn, [H], Include),
@@ -535,6 +527,13 @@ method(some/1).
 
 falsy(nil).
 falsy(false).
+
+% List accumulator goals
+keep_(Lst, nil, Lst) :- !.
+keep_(Lst, false, Lst) :- !.
+keep_(Lst, X, [X|Lst]).
+map_(Lst, Item, [Item|Lst]).
+do_(_, _, nil).
 
 %% Top level runner interface
 
