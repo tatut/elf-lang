@@ -14,6 +14,7 @@ version('0.1').
 % Reserved words that cannot be names.
 reserved(and).
 reserved(or).
+reserved('_').
 
 % Print error and fail
 err(Fmt, Args) :- format(string(Err), Fmt, Args), writeln(user_error, Err), throw(stop_on_err(Fmt,Args)).
@@ -39,6 +40,7 @@ value(val(false)) --> "false".
 value(val(nil)) --> "nil".
 
 symbol_chf(Ch) --> [Ch], { code_type(Ch, alpha) }.
+symbol_chf(95) --> [95]. % _
 symbol_ch(Ch) --> [Ch], { symbol_ch(Ch) }.
 symbol_ch(Ch) :- code_type(Ch, alnum).
 symbol_ch(95). % _
@@ -256,7 +258,7 @@ eval_op(L,>=,R,false) :- L < R.
 eval_op(L,'%',R,V) :- V is L mod R.
 eval_op(X,'=',X,true).
 eval_op(L,'=',R,false) :- dif(L,R).
-eval_op(L,'++',R,Append) :- is_list(L), is_list(R), append(L,R,Append), !.
+eval_op([L|Ls],'++',R,Append) :- is_list(R), append([L|Ls],R,Append), !.
 % nil acts as empty list for append
 eval_op(nil,'++',R,R) :- !.
 eval_op(L,'++',nil,L) :- !.
@@ -317,6 +319,17 @@ eval_if(_, Then, Then) --> [], { \+ is_callable(Then) }.
 eval_if(Bool, Then, Result) --> { is_callable(Then) },
                                 eval_call(Then, [Bool], Result).
 
+foldfn(nil, _, EmptyVal, _, _, EmptyVal) --> [].
+foldfn([], _, EmptyVal, _, _, EmptyVal) --> [].
+foldfn([X|Xs], Fn, _, InitialVal, AccumulateGoal, Result) -->
+    foldfn_([X|Xs], Fn, InitialVal, AccumulateGoal, Result).
+
+foldfn_([], _, Cur, _, Cur) --> [].
+foldfn_([X|Xs], Fn, Cur, Accumulate, Result) -->
+    eval_call(Fn, [X], Val),
+    { call(Accumulate, Cur, Val, Cur1) },
+    foldfn_(Xs, Fn, Cur1, Accumulate, Result).
+
 method(if, nil, [_], nil) -->  [].
 method(if, false, [_], nil) -->  [].
 method(if, Bool, [Then], Result) -->
@@ -376,6 +389,9 @@ method(mapcat, [H|T], [Fn], Result) -->
     eval_call(Fn, [H], Hv),
     method(map, T, [Fn], Tvs),
     { append([Hv|Tvs], Result) }.
+
+method(sum, Lst, [Fn], Result) --> foldfn(Lst, Fn, 0, 0, plus, Result).
+
 
 method(group, nil, _, M) --> [], { map_new(M) }.
 method(group, [], _, M) --> [], { map_new(M) }.

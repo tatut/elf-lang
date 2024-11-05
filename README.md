@@ -89,7 +89,7 @@ somebool ife(thenblock, elseblock)
 
 ### Valid names
 
-Names of any methods or assignments must begin with a letter (case doesn't matter),
+Names of any methods or assignments must begin with `_` or a letter (case doesn't matter),
 after that it may contain alphanumeric and `-`, `_` and `?` characters.
 
 For example these are valid names:
@@ -97,7 +97,7 @@ For example these are valid names:
 - `is-valid?`
 - `Foo1`
 
-Reserved words `and` and `or` cannot be used as names.
+Reserved words (`and`, `or` and `_`) cannot be used as names.
 
 ### Binary operations
 
