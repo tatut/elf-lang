@@ -488,6 +488,8 @@ method(dec, N, [], Result) :- Result is N - 1.
 method(abs, N, [], Result) :- Result is abs(N).
 method(max, [N|Ns], [], Result) :- max_list([N|Ns], Result).
 method(min, [N|Ns], [], Result) :- min_list([N|Ns], Result).
+method(sort, [N|Ns], [], Result) :- msort([N|Ns], Result).
+method(sortu, [N|Ns], [], Result) :- sort([N|Ns], Result).
 
 % add all methods here
 method(if/1). method(if/2).
@@ -535,6 +537,8 @@ method(dec/0).
 method(abs/0).
 method(min/0).
 method(max/0).
+method(sort/0).
+method(sortu/0).
 
 falsy(nil).
 falsy(false).
