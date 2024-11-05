@@ -184,7 +184,7 @@ getenv(Name,Val) --> state(ctx(Env,_,_)),
 
 fail_nil(X) :- dif(X, nil).
 
-eval([Expr|Methods], Out) --> eval(Expr, Val), eval_methods(Val, Methods, Out).
+eval([Expr|Methods], Out) --> eval(Expr, Val), eval_methods(Methods, Val, Out).
 eval(sub(Expr), Out) --> eval(Expr, Out).
 eval(sym(Sym), Val) --> getenv(Sym,Val).
 eval(assign(Name, Expr), Val) -->
@@ -269,11 +269,11 @@ eval_op(true,or,false,true).
 eval_op(false,or,true,true).
 eval_op(false,or,false,false).
 
-eval_methods(In, [], In) --> [].
-eval_methods(In, [M|Methods], Out) -->
+eval_methods([], In, In) --> [].
+eval_methods([M|Methods], In , Out) -->
     eval_method(In, M, Intermediate),
     { ! }, % commit to this method call result (don't leave choicepoints around)
-    eval_methods(Intermediate, Methods, Out).
+    eval_methods(Methods, Intermediate, Out).
 
 eval_method(In, mcall(Name, Args), Out) -->
     eval_all(Args, ArgValues),
