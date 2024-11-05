@@ -469,6 +469,7 @@ method(Field, rec(Record,ID), [Val], rec(Record,ID)) :-
 
 method('number?', N, [], Result) :- number(N) -> Result=true; Result=false.
 method('list?', L, [], Result) :- is_list(L) -> Result=true; Result=false.
+method('map?', M, [], Result) :- M=map(_) -> Result=true; Result=false.
 
 method(floor, N, [], Result) :- Result is floor(N).
 method(ceil, N, [], Result) :- Result is ceil(N).
@@ -482,7 +483,8 @@ method('starts?', Lst, [Prefix], Result) :-
     (append(Prefix, _, Lst) -> Result=true; Result=false), !.
 method('ends?', Lst, [Suffix], Result) :-
     append(_, Suffix, Lst) -> Result=true; Result=false.
-
+method(inc, N, [], Result) :- succ(N, Result).
+method(dec, N, [], Result) :- succ(Result, N).
 
 % add all methods here
 method(if/1). method(if/2).
@@ -517,6 +519,7 @@ method(at/1).
 method(put/_).
 method('number?'/0).
 method('list?'/0).
+method('map?'/0).
 method(floor/0).
 method(ceil/0).
 method(round/0).
@@ -524,6 +527,8 @@ method(not/0).
 method('starts?'/1).
 method('ends?'/1).
 method(some/1).
+method(inc/0).
+method(dec/0).
 
 falsy(nil).
 falsy(false).
