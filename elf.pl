@@ -7,13 +7,9 @@
 :- use_module(elf_record).
 :- use_module(elf_map).
 :- set_prolog_flag(double_quotes, codes).
-:- set_prolog_flag(elf_debug, false).
+%:- set_prolog_flag(stack_limit, 2_147_483_648).
 
 version('0.1').
-
-debug(Term) :- current_prolog_flag(elf_debug, D), debug(D, Term).
-debug(false, _).
-debug(true, T) :- writeln(T).
 
 % Reserved words that cannot be names.
 reserved(and).
@@ -185,12 +181,10 @@ setenv(Name,Val) --> state(ctx(Env0,A,P), ctx(Env1,A,P)),
                      { put_dict(Name, Env0, Val, Env1) }.
 getenv(Name,Val) --> state(ctx(Env,_,_)),
                      { (get_dict(Name, Env, Val), !); err('Name error: ~w', [Name]) }.
-dumpstate --> state(S), {debug(state(S))}.
 
 fail_nil(X) :- dif(X, nil).
 
 eval([Expr|Methods], Out) --> eval(Expr, Val), eval_methods(Val, Methods, Out).
-
 eval(sub(Expr), Out) --> eval(Expr, Out).
 eval(sym(Sym), Val) --> getenv(Sym,Val).
 eval(assign(Name, Expr), Val) -->
@@ -262,10 +256,10 @@ eval_op(L,>=,R,false) :- L < R.
 eval_op(L,'%',R,V) :- V is L mod R.
 eval_op(X,'=',X,true).
 eval_op(L,'=',R,false) :- dif(L,R).
-eval_op(L,'++',R,Append) :- is_list(L), is_list(R), append(L,R,Append).
+eval_op(L,'++',R,Append) :- is_list(L), is_list(R), append(L,R,Append), !.
 % nil acts as empty list for append
-eval_op(nil,'++',R,R).
-eval_op(L,'++',nil,L).
+eval_op(nil,'++',R,R) :- !.
+eval_op(L,'++',nil,L) :- !.
 eval_op(true,and,true,true).
 eval_op(false,and,false,false).
 eval_op(true,and,false,false).
@@ -278,6 +272,7 @@ eval_op(false,or,false,false).
 eval_methods(In, [], In) --> [].
 eval_methods(In, [M|Methods], Out) -->
     eval_method(In, M, Intermediate),
+    { ! }, % commit to this method call result (don't leave choicepoints around)
     eval_methods(Intermediate, Methods, Out).
 
 eval_method(In, mcall(Name, Args), Out) -->
@@ -286,14 +281,13 @@ eval_method(In, mcall(Name, Args), Out) -->
 eval_method(In, sym(Name), Out) --> method(Name, In, [], Out).
 
 eval_all([],[]) --> [].
-eval_all([In|Ins], [Out|Outs]) --> eval(In, Out), {debug(arg(In,Out))}, eval_all(Ins,Outs).
+eval_all([In|Ins], [Out|Outs]) --> eval(In, Out), eval_all(Ins,Outs).
 
 eval_call(fun(ArgNames, Stmts), Args, Result) -->
     push_env,
     setargs(Args),
     bind_args(ArgNames, Args),
-    dumpstate,
-    eval_stmts(nil, Stmts, Result), {debug(fn_result(Result))},
+    eval_stmts(nil, Stmts, Result),
     pop_env.
 
 eval_call(mref(Name), [Me|Args], Result) -->
@@ -316,9 +310,7 @@ eval_call_my(fun(_Arity, Stmts), My, Args, Result) -->
 eval_stmts(Result,[],Result) --> [].
 eval_stmts(Prev, [Stmt|Stmts], Result) -->
     setprev(Prev),
-    { debug(evaling(Stmt, prev(Prev))) },
     eval(Stmt, Intermediate),
-    { debug(intermed(Intermediate)) },
     eval_stmts(Intermediate, Stmts, Result).
 
 eval_if(_, Then, Then) --> [], { \+ is_callable(Then) }.
@@ -368,6 +360,15 @@ method('%mapvals'(Fn), map(ID), [K-V|KVs], map(ID)) -->
     eval_call(Fn, [V], V1),
     { map_put(map(ID), K, V1) },
     method('%mapvals'(Fn), map(ID), KVs, map(ID)).
+method(some, nil, _, nil) --> [].
+method(some, [], _, nil) --> [].
+method(some, [H|T], [Fn], Result) -->
+    eval_call(Fn, [H], Res0),
+    { falsy(Res0) },
+    method(some, T, [Fn], Result).
+method(some, [H|_], [Fn], Result) -->
+    eval_call(Fn, [H], Result),
+    { \+ falsy(Result) }.
 
 method(mapcat, nil, _, []) --> [].
 method(mapcat, [], _, []) --> [].
@@ -401,7 +402,6 @@ method(filter, [H|T], [Fn], Result) -->
     { \+ falsy(Include) -> Result=[H|Rest]; Result=Rest }.
 
 method(call, Fn, Args, Result) -->
-    {debug(call(Fn, Args))},
     eval_call(Fn, Args, Result).
 
 method(Name, rec(Record,ID), Args, Result) -->
@@ -416,6 +416,7 @@ method(digit, N, [], D) :- between(48,57,N), D is N - 48.
 method(print, Me, _, Me) :- outputln(Me).
 method(sum, Lst, [], Result) :- sum_list(Lst, Result).
 method(first, [H|_], [], H).
+method(first, [], [], nil).
 method(last, Lst, [], Last) :- last(Lst, Last).
 method(nth, Lst, [N], Nth) :- nth0(N, Lst, Nth).
 method(lines, File, [], Lines) :-
@@ -469,6 +470,11 @@ method(not, false, [], true) :- !.
 method(not, nil, [], true) :- !.
 method(not, X, [], false) :- \+ falsy(X).
 
+method('starts?', Lst, [Prefix], Result) :-
+    (append(Prefix, _, Lst) -> Result=true; Result=false), !.
+method('ends?', Lst, [Suffix], Result) :-
+    append(_, Suffix, Lst) -> Result=true; Result=false.
+
 
 % add all methods here
 method(if/1). method(if/2).
@@ -507,7 +513,9 @@ method(floor/0).
 method(ceil/0).
 method(round/0).
 method(not/0).
-
+method('starts?'/1).
+method('ends?'/1).
+method(some/1).
 
 falsy(nil).
 falsy(false).
@@ -520,19 +528,18 @@ exec(Stmts, Out) :-
     record_cleanup,
     map_cleanup,
     initial_ctx(Ctx),
-    phrase(eval_stmts(nil,Stmts,Out), [Ctx], _).
+    once(phrase(eval_stmts(nil,Stmts,Out), [Ctx], _)).
 
 exec(Stmts, Out, ctx(E,A,P), CtxOut) :-
     phrase(eval_stmts(P, Stmts, Out), [ctx(E,A,P)], [CtxOut]).
 
 run(File) :-
-    once(phrase_from_file(stmts(Stmts), File)),
+    once(phrase_from_file(statements(Stmts), File)),
     exec(Stmts, _Out).
 
 run_codes(Input, Out) :-
     %call_with_time_limit(1, (phrase(statements(Stmts), Input))),
     once(phrase(statements(Stmts), Input)),
-    debug(parsed_program(Stmts)),
     once(exec(Stmts,Out1)),
     format_result(Out1, Out).
 
