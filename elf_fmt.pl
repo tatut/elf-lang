@@ -1,5 +1,5 @@
 % Formatted output
-:- module(fmt, [fmt/3, pretty/1, prettyln/1, output/1, outputln/1]).
+:- module(elf_fmt, [fmt/3, pretty/1, prettyln/1, output/1, outputln/1]).
 :- use_module(elf_map).
 :- use_module(elf_record).
 :- use_module(library(yall)).
@@ -48,7 +48,7 @@ outputln(X) :- output(X), nl.
 pretty(X) :- is_list(X), maplist(printable, X), string_codes(Str, X),
              format('"~s"', [Str]), !.
 pretty(X) :- is_list(X), append(Items, [LastItem], X),
-             format('['), maplist([X]>>(pretty(X), format(', ')), Items),
+             format('['), maplist([I]>>(pretty(I), format(', ')), Items),
              pretty(LastItem), format(']'), !.
 pretty(nil) :- !. % output nothing on nil
 pretty(map(ID)) :- format('%{'),

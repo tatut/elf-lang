@@ -483,8 +483,11 @@ method('starts?', Lst, [Prefix], Result) :-
     (append(Prefix, _, Lst) -> Result=true; Result=false), !.
 method('ends?', Lst, [Suffix], Result) :-
     append(_, Suffix, Lst) -> Result=true; Result=false.
-method(inc, N, [], Result) :- succ(N, Result).
-method(dec, N, [], Result) :- succ(Result, N).
+method(inc, N, [], Result) :- Result is N + 1.
+method(dec, N, [], Result) :- Result is N - 1.
+method(abs, N, [], Result) :- Result is abs(N).
+method(max, [N|Ns], [], Result) :- max_list([N|Ns], Result).
+method(min, [N|Ns], [], Result) :- min_list([N|Ns], Result).
 
 % add all methods here
 method(if/1). method(if/2).
@@ -529,6 +532,9 @@ method('ends?'/1).
 method(some/1).
 method(inc/0).
 method(dec/0).
+method(abs/0).
+method(min/0).
+method(max/0).
 
 falsy(nil).
 falsy(false).
@@ -595,7 +601,7 @@ repl :-
         ((catch(exec(Stmts, Result, ctx(E,A,P), ctx(E1,_,_)),
                 _Err,
                 fail))
-         -> (with_output_to(string(Out), once(fmt:prettyln(Result))),
+         -> (with_output_to(string(Out), once(prettyln(Result))),
              format('~w\n', [Out]),
              nb_setarg(1, State, ctx(E1,[],Result)))
         ; format('Execution failed ¯\\_(ツ)_/¯\n',[])),
@@ -628,6 +634,9 @@ prg("Elf{age}, e: Elf{age:665}, e age(e age + 1)", 'Elf'{age:666}).
 prg("[\"foo\",\"bar\",\"other\"] group(&len) at(5)", [`other`]).
 prg("m: %{\"foo\": 40} put(\"bar\",2), m at(\"foo\") + m at(\"bar\")", 42).
 prg("{a,b| a + b} call(40,2)", 42).
+prg("-42 abs", 42).
+prg("69 inc", 70).
+
 test(programs, [forall(prg(Source,Expected))]) :-
     once(run_string(Source,Actual)),
     Expected = Actual.
