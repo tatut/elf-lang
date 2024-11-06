@@ -389,6 +389,8 @@ method(mapcat, [H|T], [Fn], Result) -->
 
 method(sum, Lst, [Fn], Result) --> foldfn(Lst, Fn, 0, 0, plus, '=', Result).
 
+method(min, Lst, [Fn], Result) --> foldfn(Lst, Fn, nil, nil, min_, '=', Result).
+method(max, Lst, [Fn], Result) --> foldfn(Lst, Fn, nil, nil, max_, '=', Result).
 
 method(group, nil, _, M) --> [], { map_new(M) }.
 method(group, [], _, M) --> [], { map_new(M) }.
@@ -548,6 +550,8 @@ method(dec/0).
 method(abs/0).
 method(min/0).
 method(max/0).
+method(min/1).
+method(max/2).
 method(sort/0).
 method(sortu/0).
 method(drop/1).
@@ -560,9 +564,15 @@ falsy(false).
 % List accumulator goals
 keep_(Lst, nil, Lst) :- !.
 keep_(Lst, false, Lst) :- !.
-keep_(Lst, X, [X|Lst]).
-map_(Lst, Item, [Item|Lst]).
-do_(_, _, nil).
+keep_(Lst, X, [X|Lst]) :- !.
+map_(Lst, Item, [Item|Lst]) :- !.
+do_(_, _, nil) :- !.
+
+min_(nil, X, X) :- !.
+min_(L, R, Out) :- (L < R -> Out=L;Out=R), !.
+max_(nil, X, X) :- !.
+max_(L, R, Out) :- (L > R -> Out=L;Out=R), !.
+
 
 % take&drop utils
 take([], _, []) :- !.
@@ -576,6 +586,7 @@ drop(L, 0, L) :- !.
 drop([_|Xs], N, Drop) :-
     N > 0, succ(N1, N),
     drop(Xs, N1, Drop).
+
 
 %% Top level runner interface
 
@@ -686,6 +697,8 @@ prg("[false,false,false,false] cond(1,2,3,4,5)", 5).
 prg("[\"im\",\"so\",\"meta\",\"even\",\"this\",\"acronym...\"] mapcat({$ take(1)})",
     `ismeta`).
 prg("\"foobar\" drop(3)", `bar`).
+prg("[[11,22,33],[44,55,66]] min(&first)", 11).
+prg("[[11,22,33],[44,55,66]] max(&first)", 44).
 
 test(programs, [forall(prg(Source,Expected))]) :-
     once(run_string(Source,Actual)),
