@@ -83,9 +83,8 @@ Elt.text: { my content(my content ++ [Text{text: $}]) },
 
 # Define a dynamic method handler to add child
 # this works by having elements as methods
-Elt.dynamic: {
- n: Elt{tag: $},
- args: $2,
+Elt.dynamic: {method,args|
+ n: Elt{tag: method},
  (args len >= 1) if({n attrs(args first)}),
  (args len = 2) if({args last call(n)}),
  my content(my content ++ [n]),

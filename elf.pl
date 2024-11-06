@@ -9,6 +9,8 @@
 :- set_prolog_flag(double_quotes, codes).
 %:- set_prolog_flag(stack_limit, 2_147_483_648).
 
+%:- det(method/4).
+
 version('0.1').
 
 % Reserved words that cannot be names.
@@ -210,7 +212,7 @@ eval(prevval, Val) --> state(ctx(_,_,Val)).
 eval(op(Left,Op,Right), Val) -->
     eval(Left, Lv),
     eval(Right, Rv),
-    { once(eval_op(Lv,Op,Rv, Val)) }.
+    { once(eval_op(Op,Lv,Rv, Val)) }.
 eval(fun(A,S), fun(A,S)) --> [].
 eval(arg(N), V) --> state(ctx(_,Args,_)), { nth1(N, Args, V) }.
 
@@ -243,44 +245,44 @@ eval_record_fields(Record, Instance, [Name-ValExpr|Fields]) -->
       record_set(Instance, Name, Val) },
     eval_record_fields(Record, Instance, Fields).
 
-eval_op(L,+,R,V) :- V is L + R.
-eval_op(L,-,R,V) :- V is L - R.
-eval_op(L,*,R,V) :- V is L * R.
-eval_op(L,/,R,V) :- V is L / R.
-eval_op(L,>,R,false) :- L =< R.
-eval_op(L,>,R,true) :- L > R.
-eval_op(L,<,R,false) :- L >= R.
-eval_op(L,<,R,true) :- L < R.
-eval_op(L,<=,R,true) :- L =< R.
-eval_op(L,<=,R,false) :- L > R.
-eval_op(L,>=,R,true) :- L >= R.
-eval_op(L,>=,R,false) :- L < R.
-eval_op(L,'%',R,V) :- V is L mod R.
-eval_op(X,'=',X,true).
-eval_op(L,'=',R,false) :- dif(L,R).
-eval_op([L|Ls],'++',R,Append) :- is_list(R), append([L|Ls],R,Append), !.
+eval_op(+,L,R,V) :- V is L + R.
+eval_op(-,L,R,V) :- V is L - R.
+eval_op(*,L,R,V) :- V is L * R.
+eval_op(/,L,R,V) :- V is L / R.
+eval_op(>,L,R,false) :- L =< R.
+eval_op(>,L,R,true) :- L > R.
+eval_op(<,L,R,false) :- L >= R.
+eval_op(<,L,R,true) :- L < R.
+eval_op(<=,L,R,true) :- L =< R.
+eval_op(<=,L,R,false) :- L > R.
+eval_op(>=,L,R,true) :- L >= R.
+eval_op(>=,L,R,false) :- L < R.
+eval_op('%',L,R,V) :- V is L mod R.
+eval_op('=',X,X,true).
+eval_op('=',L,R,false) :- dif(L,R).
+eval_op('++',L,R,Append) :- is_list(L), is_list(R), append(L,R,Append), !.
 % nil acts as empty list for append
-eval_op(nil,'++',R,R) :- !.
-eval_op(L,'++',nil,L) :- !.
-eval_op(true,and,true,true).
-eval_op(false,and,false,false).
-eval_op(true,and,false,false).
-eval_op(false,and,true,false).
-eval_op(true,or,true,true).
-eval_op(true,or,false,true).
-eval_op(false,or,true,true).
-eval_op(false,or,false,false).
+eval_op('++',nil,R,R) :- !.
+eval_op('++',L,nil,L) :- !.
+eval_op(and,true,true,true).
+eval_op(and,false,false,false).
+eval_op(and,true,false,false).
+eval_op(and,false,true,false).
+eval_op(or,true,true,true).
+eval_op(or,true,false,true).
+eval_op(or,false,true,true).
+eval_op(or,false,false,false).
 
 eval_methods([], In, In) --> [].
 eval_methods([M|Methods], In , Out) -->
-    eval_method(In, M, Intermediate),
+    eval_method(M, In, Intermediate),
     { ! }, % commit to this method call result (don't leave choicepoints around)
     eval_methods(Methods, Intermediate, Out).
 
-eval_method(In, mcall(Name, Args), Out) -->
+eval_method(mcall(Name, Args), In, Out) -->
     eval_all(Args, ArgValues),
-    method(Name, In, ArgValues, Out).
-eval_method(In, sym(Name), Out) --> method(Name, In, [], Out).
+    method(Name, In, ArgValues, Out), { ! }.
+eval_method(sym(Name), In, Out) --> method(Name, In, [], Out), { ! }.
 
 eval_all([],[]) --> [].
 eval_all([In|Ins], [Out|Outs]) --> eval(In, Out), eval_all(Ins,Outs).
@@ -289,7 +291,7 @@ eval_call(fun(ArgNames, Stmts), Args, Result) -->
     push_env,
     setargs(Args),
     bind_args(ArgNames, Args),
-    eval_stmts(nil, Stmts, Result),
+    eval_stmts(Stmts, nil, Result),
     pop_env.
 
 eval_call(mref(Name), [Me|Args], Result) -->
@@ -302,21 +304,22 @@ bind_args([A|Args], []) --> [], { err('Too few arguments provided, missing: ~w',
 bind_args([N|Names],[V|Values]) --> setenv(N, V), bind_args(Names,Values).
 
 % Eval a method defined on a record
-eval_call_my(fun(_Arity, Stmts), My, Args, Result) -->
+eval_call_my(fun(ArgNames, Stmts), My, Args, Result) -->
     push_env,
     setargs(Args),
+    bind_args(ArgNames, Args),
     setenv(my, My),
-    eval_stmts(nil, Stmts, Result),
+    eval_stmts(Stmts, nil, Result),
     pop_env.
 
-eval_stmts(Result,[],Result) --> [].
-eval_stmts(Prev, [Stmt|Stmts], Result) -->
+eval_stmts([],Result,Result) --> [].
+eval_stmts([Stmt|Stmts], Prev, Result) -->
     setprev(Prev),
     eval(Stmt, Intermediate),
-    eval_stmts(Intermediate, Stmts, Result).
+    eval_stmts(Stmts, Intermediate, Result).
 
-eval_if(_, Then, Then) --> [], { \+ is_callable(Then) }.
-eval_if(Bool, Then, Result) --> { is_callable(Then) },
+eval_if(_, Then, Then) --> [], { \+ is_callable(Then), ! }.
+eval_if(Bool, Then, Result) --> { is_callable(Then), ! },
                                 eval_call(Then, [Bool], Result).
 
 foldfn(nil, _, EmptyVal, _, _, _, EmptyVal) --> [].
@@ -375,14 +378,14 @@ method(some, [H|T], [Fn], Result) -->
     method(some, T, [Fn], Result).
 method(some, [H|_], [Fn], Result) -->
     eval_call(Fn, [H], Result),
-    { \+ falsy(Result) }.
+    { \+ falsy(Result), ! }.
 
 method(mapcat, nil, _, []) --> [].
 method(mapcat, [], _, []) --> [].
 method(mapcat, [H|T], [Fn], Result) -->
     eval_call(Fn, [H], Hv),
     method(map, T, [Fn], Tvs),
-    { append([Hv|Tvs], Result) }.
+    { append([Hv|Tvs], Result), ! }.
 
 method(sum, Lst, [Fn], Result) --> foldfn(Lst, Fn, 0, 0, plus, '=', Result).
 
@@ -396,7 +399,7 @@ method('%group'(_), M, [], M) --> [].
 method('%group'(Fn), M, [X|Xs], M) -->
     eval_call(Fn, [X], Group),
     { map_get(M, Group, Current),
-      eval_op(Current,'++',[X], New),
+      eval_op('++',Current,[X], New),
       map_put(M, Group, New) },
     method('%group'(Fn), M, Xs, M).
 
@@ -417,59 +420,61 @@ method(Name, rec(Record,ID), Args, Result) -->
     eval_call_my(Fun, rec(Record,ID), Args1, Result).
 
 % Any pure Prolog method, that doesn't need DCG evaluation context
-method(Method, Me, Args, Result) --> [], { method(Method, Me, Args, Result) }.
+method(Method, Me, Args, Result) -->
+    [],
+    { method(Method, Me, Args, Result) }.
 
-method(digit, N, [], nil) :- \+ between(48, 57, N).
-method(digit, N, [], D) :- between(48,57,N), D is N - 48.
-method(print, Me, _, Me) :- outputln(Me).
-method(sum, Lst, [], Result) :- sum_list(Lst, Result).
-method(first, [H|_], [], H).
-method(first, [], [], nil).
-method(last, Lst, [], Last) :- last(Lst, Last).
-method(nth, Lst, [N], Nth) :- nth0(N, Lst, Nth).
+method(digit, N, [], nil) :- \+ between(48, 57, N), !.
+method(digit, N, [], D) :- between(48,57,N), !, D is N - 48.
+method(print, Me, _, Me) :- outputln(Me), !.
+method(sum, Lst, [], Result) :- sum_list(Lst, Result), !.
+method(first, [H|_], [], H) :- !.
+method(first, [], [], nil) :- !.
+method(last, Lst, [], Last) :- last(Lst, Last), !.
+method(nth, Lst, [N], Nth) :- nth0(N, Lst, Nth), !.
 method(lines, File, [], Lines) :-
     atom_codes(F, File),
     read_file_to_string(F, Str,[]),
     string_lines(Str, LinesStr),
-    maplist(string_codes, LinesStr, Lines).
-method(heads, [], [], []).
-method(heads, [H|T], [], [[H|T]|Heads]) :- method(heads, T, [], Heads).
-method(reverse, Lst, [], Rev) :- reverse(Lst,Rev).
-method(to, From, [To], Lst) :- findall(N, between(From,To,N), Lst).
-method(to, From, [To, _], []) :- From > To.
-method(to, From, [To, Inc], [From|Rest]) :- From1 is From + Inc, method(to, From1, [To, Inc], Rest).
-method(fmt, PatternCs, Args, Out) :- fmt(PatternCs, Args, Out).
+    maplist(string_codes, LinesStr, Lines), !.
+method(heads, [], [], []) :- !.
+method(heads, [H|T], [], [[H|T]|Heads]) :- method(heads, T, [], Heads), !.
+method(reverse, Lst, [], Rev) :- reverse(Lst,Rev), !.
+method(to, From, [To], Lst) :- findall(N, between(From,To,N), Lst), !.
+method(to, From, [To, _], []) :- From > To, !.
+method(to, From, [To, Inc], [From|Rest]) :- From1 is From + Inc, method(to, From1, [To, Inc], Rest), !.
+method(fmt, PatternCs, Args, Out) :- fmt(PatternCs, Args, Out), !.
 method(join, Lst, [Sep], Out) :-
     foldl({Sep}/[Item,Acc,Out]>>append([Acc, Sep, Item], Out),
           Lst, [], Intermediate),
     % Remove the separator before first element
-    append(Sep, Out, Intermediate).
+    append(Sep, Out, Intermediate), !.
 method(split, Lst, [Sep], Result) :-
-    once(append([Start, Sep, Rest], Lst))
+    (once(append([Start, Sep, Rest], Lst))
     -> (method(split, Rest, [Sep], RestSplit),
         Result=[Start|RestSplit])
-    ; Result=[Lst].
-method(len, nil, [], 0).
-method(len, [], [], 0).
-method(len, [L|Lst], [], Result) :- length([L|Lst], Result).
-method(len, map(ID), [], Result) :- map_size(map(ID), Result).
-method(at, map(ID), [Key], Result) :- map_get(map(ID), Key, Result).
+    ; Result=[Lst]), !.
+method(len, nil, [], 0) :- !.
+method(len, [], [], 0) :- !.
+method(len, [L|Lst], [], Result) :- length([L|Lst], Result), !.
+method(len, map(ID), [], Result) :- map_size(map(ID), Result), !.
+method(at, map(ID), [Key], Result) :- map_get(map(ID), Key, Result), !.
 method(put, map(ID), [Key, Val | KVs], R) :-
     map_put(map(ID), Key, Val),
-    method(put, map(ID), KVs, R).
-method(put, map(ID), [], map(ID)).
+    method(put, map(ID), KVs, R), !.
+method(put, map(ID), [], map(ID)) :- !.
 
 % Record fields act as getter
-method(Field, rec(Record,ID), [], Val) :- record_get(rec(Record,ID), Field, Val).
+method(Field, rec(Record,ID), [], Val) :- record_get(rec(Record,ID), Field, Val), !.
 
 % Record fields with 1 parameter act as setter
 method(Field, rec(Record,ID), [Val], rec(Record,ID)) :-
     record_field(Record, _, Field),
-    record_set(rec(Record,ID), Field, Val).
+    record_set(rec(Record,ID), Field, Val), !.
 
-method('number?', N, [], Result) :- number(N) -> Result=true; Result=false.
-method('list?', L, [], Result) :- is_list(L) -> Result=true; Result=false.
-method('map?', M, [], Result) :- M=map(_) -> Result=true; Result=false.
+method('number?', N, [], Result) :- (number(N) -> Result=true; Result=false), !.
+method('list?', L, [], Result) :- (is_list(L) -> Result=true; Result=false), !.
+method('map?', M, [], Result) :- (M=map(_) -> Result=true; Result=false), !.
 
 method(floor, N, [], Result) :- Result is floor(N).
 method(ceil, N, [], Result) :- Result is ceil(N).
@@ -477,12 +482,12 @@ method(round, N, [], Result) :- Result is round(N).
 
 method(not, false, [], true) :- !.
 method(not, nil, [], true) :- !.
-method(not, X, [], false) :- \+ falsy(X).
+method(not, X, [], false) :- \+ falsy(X), !.
 
 method('starts?', Lst, [Prefix], Result) :-
     (append(Prefix, _, Lst) -> Result=true; Result=false), !.
 method('ends?', Lst, [Suffix], Result) :-
-    append(_, Suffix, Lst) -> Result=true; Result=false.
+    (append(_, Suffix, Lst) -> Result=true; Result=false), !.
 method(inc, N, [], Result) :- Result is N + 1.
 method(dec, N, [], Result) :- Result is N - 1.
 method(abs, N, [], Result) :- Result is abs(N).
@@ -490,6 +495,12 @@ method(max, [N|Ns], [], Result) :- max_list([N|Ns], Result).
 method(min, [N|Ns], [], Result) :- min_list([N|Ns], Result).
 method(sort, [N|Ns], [], Result) :- msort([N|Ns], Result).
 method(sortu, [N|Ns], [], Result) :- sort([N|Ns], Result).
+method(take, Lst, [N], Result) :- take(Lst, N, Result).
+method(drop, Lst, [N], Result) :- drop(Lst, N, Result).
+method(debug, X, [], X) :- debug, !.
+
+% for putting a breakpoint
+debug.
 
 % add all methods here
 method(if/1). method(if/2).
@@ -539,6 +550,9 @@ method(min/0).
 method(max/0).
 method(sort/0).
 method(sortu/0).
+method(drop/1).
+method(take/1).
+method(debug/0).
 
 falsy(nil).
 falsy(false).
@@ -550,6 +564,19 @@ keep_(Lst, X, [X|Lst]).
 map_(Lst, Item, [Item|Lst]).
 do_(_, _, nil).
 
+% take&drop utils
+take([], _, []) :- !.
+take(_, 0, []) :- !.
+take([X|Xs], N, [X|Result]) :-
+    N > 0, succ(N1, N),
+    take(Xs, N1, Result).
+
+drop([], _, []) :- !.
+drop(L, 0, L) :- !.
+drop([_|Xs], N, Drop) :-
+    N > 0, succ(N1, N),
+    drop(Xs, N1, Drop).
+
 %% Top level runner interface
 
 initial_ctx(ctx(env{},[],nil)).
@@ -558,10 +585,10 @@ exec(Stmts, Out) :-
     record_cleanup,
     map_cleanup,
     initial_ctx(Ctx),
-    once(phrase(eval_stmts(nil,Stmts,Out), [Ctx], _)).
+    once(phrase(eval_stmts(Stmts,nil,Out), [Ctx], _)).
 
 exec(Stmts, Out, ctx(E,A,P), CtxOut) :-
-    phrase(eval_stmts(P, Stmts, Out), [ctx(E,A,P)], [CtxOut]).
+    phrase(eval_stmts(Stmts, P, Out), [ctx(E,A,P)], [CtxOut]).
 
 run(File) :-
     once(phrase_from_file(statements(Stmts), File)),
@@ -640,6 +667,25 @@ prg("m: %{\"foo\": 40} put(\"bar\",2), m at(\"foo\") + m at(\"bar\")", 42).
 prg("{a,b| a + b} call(40,2)", 42).
 prg("-42 abs", 42).
 prg("69 inc", 70).
+prg("-69 dec", -70).
+
+prg("[100,200] nth(0)", 100).
+prg("[100,200] reverse", [200,100]).
+prg("[\"foo\",\"bar\"] join(\" and \")", `foo and bar`).
+prg("\"foo&bar\" split(\"&\")", [`foo`,`bar`]).
+prg("\"foobar\" starts?(\"foo\")", true).
+prg("\"foobar\" starts?(\"bra\")", false).
+prg("\"foobar\" ends?(\"bar\")", true).
+prg("\"foobar\" ends?(\"asd\")", false).
+prg("[9,1,420,-6] max", 420).
+prg("[9,1,420,-6] min", -6).
+prg("[5,6,7,1,2,5] sort", [1,2,5,5,6,7]).
+prg("[5,6,7,1,2,5] sortu", [1,2,5,6,7]).
+prg("[false,false,true,true] cond(1,2,3,4,5)", 3).
+prg("[false,false,false,false] cond(1,2,3,4,5)", 5).
+prg("[\"im\",\"so\",\"meta\",\"even\",\"this\",\"acronym...\"] mapcat({$ take(1)})",
+    `ismeta`).
+prg("\"foobar\" drop(3)", `bar`).
 
 test(programs, [forall(prg(Source,Expected))]) :-
     once(run_string(Source,Actual)),
