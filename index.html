@@ -1,7 +1,10 @@
 <!DOCTYPE>
 <html>
   <head>
-
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Elsie:wght@400;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Anonymous+Pro:ital,wght@0,400;0,700;1,400;1,700&family=Elsie:wght@400;900&display=swap" rel="stylesheet">
     <script src="https://SWI-Prolog.github.io/npm-swipl-wasm/4/0/10/index.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.1/ace.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.1/ext-language_tools.min.js"></script>
@@ -9,6 +12,54 @@
 
     <style>
       .stderr { color: red; }
+      .elsie-regular {
+          font-family: "Elsie", serif;
+          font-weight: 400;
+          font-style: normal;
+      }
+
+      .elsie-black {
+          font-family: "Elsie", serif;
+          font-weight: 900;
+          font-style: normal;
+      }
+      .anonymous-pro-regular {
+          font-family: "Anonymous Pro", monospace;
+          font-weight: 400;
+          font-style: normal;
+      }
+
+      .anonymous-pro-bold {
+          font-family: "Anonymous Pro", monospace;
+          font-weight: 700;
+          font-style: normal;
+      }
+
+      .anonymous-pro-regular-italic {
+          font-family: "Anonymous Pro", monospace;
+          font-weight: 400;
+          font-style: italic;
+      }
+
+      .anonymous-pro-bold-italic {
+          font-family: "Anonymous Pro", monospace;
+          font-weight: 700;
+          font-style: italic;
+      }
+
+      #log {
+          overflow-y: auto;
+          max-height: 50vh;
+          margin-left: 0.5em;
+      }
+
+      #result {
+          border: solid 1px lightgray;
+          border-radius: 1em;
+          padding: 1em;
+      }
+
+      #examples { margin-left: 3em; }
     </style>
 
     <script>
@@ -108,19 +159,26 @@
 
   </head>
   <body onload="initCode()">
-    <select id="examples" title="Examples">
-      <option value="">-- select example --</option>
-    </select>
-    <pre id="code" style="height: 50vh; width: 75vw;">[1 2 4] sum</pre>
-    <div>
-      <button onclick="run()">run</button>
+    <h2 class="elsie-black">elf-lang playground</h2>
+    <div style="display: flex; flex-direction: col;">
+      <div>
+        <h4 class="elsie-regular">Code
+            <select id="examples" title="Examples">
+              <option value="">-- select example --</option>
+            </select>
+        </h4>
+        <pre id="code" style="height: 50vh; width: 60vw;">[1, 2, 4] sum * 3</pre>
+        <div>
+          <button onclick="run()" title="Run code (Ctrl/Cmd + Enter)">run</button>
+        </div>
+        <h4 class="elsie-regular">Evaluation result</h4>
+        <div class="anonymous-pro-regular" id="result">evaluate code to see result here</div>
+      </div>
+      <div style="width: 40vw;">
+        <h4 class="elsie-regular">Printed output</h4>
+        <div class="anonymous-pro-regular" id="log"></div>
+      </div>
     </div>
-
-    <div id="result"></div>
-    <details open>
-      <summary>Printed output</summary>
-      <div id="log"></div>
-    </details>
 
   </body>
 </html>
