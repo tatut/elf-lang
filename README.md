@@ -2,6 +2,8 @@
 
 ![test workflow](https://github.com/tatut/elf-lang/actions/workflows/test.yml/badge.svg)
 
+![elf-lang logo](https://github.com/tatut/elf-lang/blob/main/elf-lang-logo-small.png?raw=true)
+
 This is the Elf programming language.
 
 Designed to get help those elves get their xmas duties done
