@@ -417,6 +417,11 @@ method(filter, [H|T], [Fn], Result) -->
 method(call, Fn, Args, Result) -->
     eval_call(Fn, Args, Result).
 
+method(use, Lib, [], nil) -->
+    { atom_codes(File, Lib),
+      once(phrase_from_file(statements(Stmts), File)) },
+    eval_stmts(Stmts, nil, _).
+
 method(Name, rec(Record,ID), Args, Result) -->
     { get_record_method(Record, Name, Fun, Args, Args1) },
     eval_call_my(Fun, rec(Record,ID), Args1, Result).
@@ -699,6 +704,7 @@ prg("[\"im\",\"so\",\"meta\",\"even\",\"this\",\"acronym...\"] mapcat({$ take(1)
 prg("\"foobar\" drop(3)", `bar`).
 prg("[[11,22,33],[44,55,66]] min(&first)", 11).
 prg("[[11,22,33],[44,55,66]] max(&first)", 44).
+prg("\"examples/elves.elf\" use, elves max(&age)", 317).
 
 test(programs, [forall(prg(Source,Expected))]) :-
     once(run_string(Source,Actual)),
