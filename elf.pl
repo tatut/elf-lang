@@ -525,6 +525,9 @@ method(sortu, [N|Ns], [], Result) :- sort([N|Ns], Result).
 method(take, Lst, [N], Result) :- take(Lst, N, Result).
 method(drop, Lst, [N], Result) :- drop(Lst, N, Result).
 method(debug, X, [], X) :- debug, !.
+method('_0', [N|_], [], N).
+method('_1', [_,N|_], [], N).
+method('_2', [_,_,N|_], [], N).
 
 % for putting a breakpoint
 debug.
@@ -582,6 +585,13 @@ method(sortu/0).
 method(drop/1).
 method(take/1).
 method(debug/0).
+method(_0/0). % first
+method(_1/0). % second
+method(_2/0). % third
+method(sort/1).
+method(minw/1).
+method(maxw/1).
+
 
 falsy(nil).
 falsy(false).
@@ -738,8 +748,8 @@ prg("\"foobar\" drop(3)", `bar`).
 prg("[[11,22,33],[44,55,66]] min(&first)", 11).
 prg("[[11,22,33],[44,55,66]] max(&first)", 44).
 prg("\"examples/elves.elf\" use, elves max(&age)", 317).
-prg("\"examples/elves.elf\" use, elves sort(&age) first age", 75).
-prg("\"examples/elves.elf\" use, elves minw(&age) last name", `Biscuit Peppermint`).
+prg("\"examples/elves.elf\" use, elves sort(&age) _0 age", 75).
+prg("\"examples/elves.elf\" use, elves minw(&age) _1 name", `Biscuit Peppermint`).
 prg("\"examples/elves.elf\" use, elves maxw(&age) first", 317).
 
 test(programs, [forall(prg(Source,Expected))]) :-
