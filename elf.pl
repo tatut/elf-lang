@@ -327,11 +327,25 @@ foldfn([], _, EmptyVal, _, _, _, EmptyVal) --> [].
 foldfn([X|Xs], Fn, _, InitialVal, AccumulateGoal, Finalize, Result) -->
     foldfn_([X|Xs], Fn, InitialVal, AccumulateGoal, Finalize, Result).
 
+% variant of fold with witness (the value itself as FnResult-Value pairs)
+foldfnw(nil, _, EmptyVal, _, _, _, EmptyVal) --> [].
+foldfnw([], _, EmptyVal, _, _, _, EmptyVal) --> [].
+foldfnw([X|Xs], Fn, _, InitialVal, AccumulateGoal, Finalize, Result) -->
+    foldfnw_([X|Xs], Fn, InitialVal, AccumulateGoal, Finalize, Result).
+
+
 foldfn_([], _, Cur, _, Finalize, Result) --> [], { call(Finalize, Cur, Result) }.
 foldfn_([X|Xs], Fn, Cur, Accumulate, Finalize, Result) -->
     eval_call(Fn, [X], Val),
     { call(Accumulate, Cur, Val, Cur1) },
     foldfn_(Xs, Fn, Cur1, Accumulate, Finalize, Result).
+
+foldfnw_([], _, Cur, _, Finalize, Result) --> [], { call(Finalize, Cur, Result) }.
+foldfnw_([X|Xs], Fn, Cur, Accumulate, Finalize, Result) -->
+    eval_call(Fn, [X], Val),
+    { call(Accumulate, Cur, Val-X, Cur1) },
+    foldfnw_(Xs, Fn, Cur1, Accumulate, Finalize, Result).
+
 
 method(if, nil, [_], nil) -->  [].
 method(if, false, [_], nil) -->  [].
@@ -360,6 +374,10 @@ method(keep, Lst, [Fn], Result) -->
     foldfn(Lst, Fn, [], [], keep_, reverse, Result).
 method(map, Lst, [Fn], Result) -->
     foldfn(Lst, Fn, [], [], map_, reverse, Result).
+
+method(sort, Lst, [Fn], Result) -->
+    foldfnw(Lst, Fn, [], [], map_, keysort, Result0),
+    { pairs_values(Result0, Result) }.
 
 method(map, map(ID0), [Fn], map(ID1)) -->
     { map_new(map(ID1)),
@@ -391,6 +409,8 @@ method(sum, Lst, [Fn], Result) --> foldfn(Lst, Fn, 0, 0, plus, '=', Result).
 
 method(min, Lst, [Fn], Result) --> foldfn(Lst, Fn, nil, nil, min_, '=', Result).
 method(max, Lst, [Fn], Result) --> foldfn(Lst, Fn, nil, nil, max_, '=', Result).
+method(minw, Lst, [Fn], Result) --> foldfnw(Lst, Fn, nil, nil, minw_, pair_list, Result).
+method(maxw, Lst, [Fn], Result) --> foldfnw(Lst, Fn, nil, nil, maxw_, pair_list, Result).
 
 method(group, nil, _, M) --> [], { map_new(M) }.
 method(group, [], _, M) --> [], { map_new(M) }.
@@ -578,6 +598,19 @@ min_(L, R, Out) :- (L < R -> Out=L;Out=R), !.
 max_(nil, X, X) :- !.
 max_(L, R, Out) :- (L > R -> Out=L;Out=R), !.
 
+% min and max with witness
+minw_(nil, X, X) :- !.
+minw_(R0-W0, R1-_, R0-W0) :- R0 < R1, !.
+minw_(R0-_, R1-W1, R1-W1) :- R0 >= R1, !.
+
+maxw_(nil, X, X) :- !.
+maxw_(R0-W0, R1-_, R0-W0) :- R0 > R1, !.
+maxw_(R0-_, R1-W1, R1-W1) :- R0 =< R1, !.
+
+pair_list(L-R, [L, R]) :- !.
+
+
+
 
 % take&drop utils
 take([], _, []) :- !.
@@ -705,6 +738,9 @@ prg("\"foobar\" drop(3)", `bar`).
 prg("[[11,22,33],[44,55,66]] min(&first)", 11).
 prg("[[11,22,33],[44,55,66]] max(&first)", 44).
 prg("\"examples/elves.elf\" use, elves max(&age)", 317).
+prg("\"examples/elves.elf\" use, elves sort(&age) first age", 75).
+prg("\"examples/elves.elf\" use, elves minw(&age) last name", `Biscuit Peppermint`).
+prg("\"examples/elves.elf\" use, elves maxw(&age) first", 317).
 
 test(programs, [forall(prg(Source,Expected))]) :-
     once(run_string(Source,Actual)),
