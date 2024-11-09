@@ -228,15 +228,15 @@ eval(record(Name, Fields), R) -->
     eval_record_fields(Name, R, Fields).
 
 eval(map_new(Fields), Map) -->
-    { map_new(Map) },
-    eval_map_fields(Map, Fields).
+    { map_new(Map0) },
+    eval_map_fields(Fields, Map0, Map).
 
-eval_map_fields(_, []) --> [].
-eval_map_fields(Map, [KeyExpr-ValExpr|Fields]) -->
+eval_map_fields([], M, M) --> [].
+eval_map_fields([KeyExpr-ValExpr|Fields], Map0, MapOut) -->
     eval(KeyExpr, Key),
     eval(ValExpr, Val),
-    { map_put(Map, Key, Val) },
-    eval_map_fields(Map, Fields).
+    { map_put(Map0, Key, Val, Map1) },
+    eval_map_fields(Fields, Map1, MapOut).
 
 eval_record_fields(_, _, []) --> [].
 eval_record_fields(Record, Instance, [Name-ValExpr|Fields]) -->
@@ -379,15 +379,15 @@ method(sort, Lst, [Fn], Result) -->
     foldfnw(Lst, Fn, [], [], map_, keysort, Result0),
     { pairs_values(Result0, Result) }.
 
-method(map, map(ID0), [Fn], map(ID1)) -->
-    { map_new(map(ID1)),
-      map_pairs(map(ID0), Pairs) },
-    method('%mapvals'(Fn), map(ID1), Pairs, map(ID1)).
-method('%mapvals'(_), _, [], _) --> [].
-method('%mapvals'(Fn), map(ID), [K-V|KVs], map(ID)) -->
+method(map, map(M0), [Fn], map(M2)) -->
+    { map_new(map(M1)),
+      map_pairs(map(M0), Pairs) },
+    method('%mapvals'(Fn), map(M1), Pairs, map(M2)).
+method('%mapvals'(_), M, [], M) --> [].
+method('%mapvals'(Fn), map(M0), [K-V|KVs], map(M2)) -->
     eval_call(Fn, [V], V1),
-    { map_put(map(ID), K, V1) },
-    method('%mapvals'(Fn), map(ID), KVs, map(ID)).
+    { map_put(map(M0), K, V1, map(M1)) },
+    method('%mapvals'(Fn), map(M1), KVs, map(M2)).
 method(some, nil, _, nil) --> [].
 method(some, [], _, nil) --> [].
 method(some, [H|T], [Fn], Result) -->
@@ -414,16 +414,16 @@ method(maxw, Lst, [Fn], Result) --> foldfnw(Lst, Fn, nil, nil, maxw_, pair_list,
 
 method(group, nil, _, M) --> [], { map_new(M) }.
 method(group, [], _, M) --> [], { map_new(M) }.
-method(group, [X|Xs], [Fn], M) -->
-    { map_new(M) },
-    method('%group'(Fn), M, [X|Xs], M).
+method(group, [X|Xs], [Fn], M1) -->
+    { map_new(M0) },
+    method('%group'(Fn), M0, [X|Xs], M1).
 method('%group'(_), M, [], M) --> [].
-method('%group'(Fn), M, [X|Xs], M) -->
+method('%group'(Fn), M0, [X|Xs], M2) -->
     eval_call(Fn, [X], Group),
-    { map_get(M, Group, Current),
+    { map_get(M0, Group, Current),
       eval_op('++',Current,[X], New),
-      map_put(M, Group, New) },
-    method('%group'(Fn), M, Xs, M).
+      map_put(M0, Group, New, M1) },
+    method('%group'(Fn), M1, Xs, M2).
 
 method(do, Lst, [Fn], Result) -->
     foldfn(Lst, Fn, nil, nil, do_, '=', Result).
@@ -484,12 +484,12 @@ method(split, Lst, [Sep], Result) :-
 method(len, nil, [], 0) :- !.
 method(len, [], [], 0) :- !.
 method(len, [L|Lst], [], Result) :- length([L|Lst], Result), !.
-method(len, map(ID), [], Result) :- map_size(map(ID), Result), !.
-method(at, map(ID), [Key], Result) :- map_get(map(ID), Key, Result), !.
-method(put, map(ID), [Key, Val | KVs], R) :-
-    map_put(map(ID), Key, Val),
-    method(put, map(ID), KVs, R), !.
-method(put, map(ID), [], map(ID)) :- !.
+method(len, map(M), [], Result) :- map_size(map(M), Result), !.
+method(at, map(M), [Key], Result) :- map_get(map(M), Key, Result), !.
+method(put, map(M), [Key, Val | KVs], R) :-
+    map_put(map(M), Key, Val, map(M1)),
+    method(put, map(M1), KVs, R), !.
+method(put, map(M), [], map(M)) :- !.
 
 % Record fields act as getter
 method(Field, rec(Record,ID), [], Val) :- record_get(rec(Record,ID), Field, Val), !.
