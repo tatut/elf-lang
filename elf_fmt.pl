@@ -62,7 +62,7 @@ pretty(rec(Record,ID)) :-
     findall(Field-Value, (record_field(Record, _, Field),
                           record_data(ID, Field, Value)),
             FieldVals),
-    append(FVs,[LastField-LastVal], FieldVals),
+    once(append(FVs,[LastField-LastVal], FieldVals)),
     maplist({Pad}/[F-V]>>(format('~w: ', [F]), pretty(V), format(',~n~s', [Pad])), FVs),
     format('~w: ',[LastField]), pretty(LastVal), format('}').
 
