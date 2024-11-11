@@ -70,14 +70,15 @@
               getCompletions: function(editor, session, pos, prefix, callback) {
                   if (prefix.length === 0) { callback(null, []); }
                   else {
-                      let q = Prolog.query("elf_dev:method_completion(Prefix, Name)", {Prefix: prefix});
+                      let q = Prolog.query("elf_dev:method_completion(Prefix, Name, Doc)", {Prefix: prefix});
                       let r;
                       let cs = [];
                       do {
                           r = q.next();
                           if(r.value) {
                               let n = r.value.Name;
-                              cs.push({name: n, value: n, score: 100, meta: "method"});
+                              let d = r.value.Doc;
+                              cs.push({name: n, value: n, score: 100, docText: d, meta: "method"});
                           }
 
                       } while(!r.done);

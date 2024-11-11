@@ -533,64 +533,61 @@ method('_2', [_,_,N|_], [], N).
 debug.
 
 % add all methods here
-method(if/1). method(if/2).
-method(cond/_).
-method(keep/1).
-method(map/1).
-method(mapcat/1).
-method(group/1).
-method(print/0).
-method(digit/0).
-method(map/1).
-method(do/1).
-method(sum/0).
-method(filter/1).
-method(call/_).
-method(digit/1).
-method(print/0).
-method(sum/0).
-method(first/0).
-method(last/0).
-method(nth/0).
-method(lines/0).
-method(heads/0).
-method(reverse/0).
-method(to/1).
-method(to/2).
-method(fmt/_).
-method(join/1).
-method(split/1).
-method(len/0).
-method(at/1).
-method(put/_).
-method('number?'/0).
-method('list?'/0).
-method('map?'/0).
-method(floor/0).
-method(ceil/0).
-method(round/0).
-method(not/0).
-method('starts?'/1).
-method('ends?'/1).
-method(some/1).
-method(inc/0).
-method(dec/0).
-method(abs/0).
-method(min/0).
-method(max/0).
-method(min/1).
-method(max/2).
-method(sort/0).
-method(sortu/0).
-method(drop/1).
-method(take/1).
-method(debug/0).
-method(_0/0). % first
-method(_1/0). % second
-method(_2/0). % third
-method(sort/1).
-method(minw/1).
-method(maxw/1).
+method(if/1, "if(Then)\nIf recipient is truthy, return Then. If Then is a function, it is called with the recipient as argument and its return value is returned.").
+method(if/2, "if(Then,Else)\nIf recipient is truthy, return Then otherwise return Else. Both can be values or functions.").
+method(cond/_, "cond(Action1,...,ActionN, Else)\nTakes the first truthy value in recipient and runs the corresponding action or Else if no value is truthy. If Else is not specified, returns nil when no value is truthy.").
+method(keep/1,"keep(Fn)\nCall Fn on all values in recipient, returns list of all results that are not nil.").
+method(map/1,"map(Fn)\nCall Fn on all values in recipient and returns values as a list.").
+method(mapcat/1,"mapcat(Fn)\nCall Fn on all values in recipient appending all resulting lists in one list. Fn must return a list or nil.").
+method(group/1,"group(Fn)\nGroup values in recipient by Fn. Calls Fn on each value in recipient and returns map with the result as key and list of values having that result as value.").
+method(print/0,"Print value to standard output.").
+method(digit/0,"Return ASCII digit code as number, or nil if code is not a digit.").
+method(do/1,"do(Fn)\nCall Fn on each value in recipient, presumably for side effects. Returns nil.").
+method(sum/0,"Returns sum of all values in recipient.").
+method(filter/1,"filter(Fn)\nCall Fn on each value in recipient, return list of values where the result is truthy.").
+method(call/_,"Call recipient function with given arguments.").
+method(first/0,"Return first value in recipient.").
+method(last/0,"Return last value in recipient.").
+method(nth/0,"nth(N)\nReturn the Nth value in recipient.").
+method(lines/0,"Return list of lines in file.").
+method(heads/0,"Return successive heads of recipient.").
+method(reverse/0,"Return recipient reversed.").
+method(to/1,"to(Upto)\nReturn list of successive numbers from recipient to Upto.").
+method(to/2,"to(Upto, Skip)\nReturn list of successive numbers from recipient to Upto, incrementing with Skip.").
+method(fmt/_,"fmt(Arg1,...,ArgN)\nFormat recipient string with given parameters, any use \"%s\" and \"%d\" to mark argument strings and numbers.").
+method(join/1,"join(Sep)\nJoin recipient list of lists into one list with separator.").
+method(split/1,"split(Sep)\nsplit recipient list into sublists at each occurence of separator Sep.").
+method(len/0,"Returns the length of a list.").
+method(at/1,"map(Key)\nReturn value at key or nil if not present.").
+method(put/_,"put(Key1,Val1,...,KeyN,ValN)\nPut values into map, returns new map with added mappings.").
+method('number?'/0,"True if recipient is a number, false otherwise.").
+method('list?'/0,"True if recipient is a list, false otherwise.").
+method('map?'/0,"True if recipient is a map, false otherwise.").
+method(floor/0,"Return largest integer that is less than or equal to recipient.").
+method(ceil/0,"Return smallest integer that is greater than or equal to recipient.").
+method(round/0,"Return the closest integer to recipient.").
+method(not/0,"Return negated boolean of recipient.").
+method('starts?'/1,"starts?(Prefix)\nReturns true if recipient starts with Prefix, false otherwise.").
+method('ends?'/1,"ends(Suffix)\nReturns true if recipient ends with Suffix, false otherwise.").
+method(some/1,"some(Pred)\nReturns the first value in recipient where the result of calling Pred on it returns truthy, or nil otherwise.").
+method(inc/0,"Return the recipient incremented by 1.").
+method(dec/0,"Return the recipient decremented by 1.").
+method(abs/0,"Return the absolute value of recipient.").
+method(min/0,"Return the minimum value of a list of numbers.").
+method(max/0,"Return the maximum value of a list of numbers.").
+method(min/1,"min(Fn)\nCall Fn on each value in recipient, return the minimum value.").
+method(max/1,"max(Fn)\nCall Fn on each value in recipient, return the maximum value.").
+method(sort/0,"Return recipient as sorted.").
+method(sortu/0,"Return recipient as sorted without duplicates.").
+method(drop/1,"drop(N)\nReturn recipient without the first N values.").
+method(take/1,"take(N)\nReturn the first N values of recipient.").
+method(debug/0,"Print internal interpreter state.").
+method(_0/0,"Return 1st value of recipient."). % first
+method(_1/0,"Return 2nd value of recipient."). % second
+method(_2/0,"Return 3rd value of recipient."). % third
+method(sort/1,"sort(Fn)\nCall Fn on each value in recipient, return recipient sorted by the return values.").
+method(minw/1,"minw(Fn)\nCall Fn on each value in recipient, return list containing the smallest result and the value it corresponds with.").
+method(maxw/1,"maxw(Fn)\nCall Fn on each value in recipient, return list containing the largest result and the value it corresponds with.").
 
 
 falsy(nil).

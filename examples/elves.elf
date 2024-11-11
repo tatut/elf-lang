@@ -19,4 +19,6 @@ elves: [Elf{name: "Jingleberry Twinkletoes", age: 243},
         Elf{name: "Glitter Gumdrop",         age: 143},
         Elf{name: "Tootsie Snowflake",       age: 166},
         Elf{name: "Cherry Frostnibble",      age: 97},
-        Elf{name: "Sprinkle Jinglepop",      age: 225}]
+        Elf{name: "Sprinkle Jinglepop",      age: 225}],
+
+Elf.greet: { "Hi %s! My name is %s and I'm %d years old!" fmt($, my name, my age) }
