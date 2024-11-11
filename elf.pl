@@ -748,6 +748,8 @@ prg("\"examples/elves.elf\" use, elves max(&age)", 317).
 prg("\"examples/elves.elf\" use, elves sort(&age) _0 age", 75).
 prg("\"examples/elves.elf\" use, elves minw(&age) _1 name", `Biscuit Peppermint`).
 prg("\"examples/elves.elf\" use, elves maxw(&age) first", 317).
+prg("\"examples/elves.elf\" use, elves minw(&age) _1 greet(\"world\")",
+    `Hi world! My name is Biscuit Peppermint and I'm 75 years old!`).
 prg("%{\"foo\": 41, \"bar\": 665} map(&inc) at(\"foo\")", 42).
 
 test(programs, [forall(prg(Source,Expected))]) :-
