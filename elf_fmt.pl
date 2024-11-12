@@ -45,34 +45,43 @@ output(X) :- writef('%w', [X]).
 
 outputln(X) :- output(X), nl.
 
-pretty(X) :- is_list(X), maplist(printable, X), string_codes(Str, X),
-             format('"~s"', [Str]), !.
-pretty(X) :- is_list(X), append(Items, [LastItem], X),
-             format('['), maplist([I]>>(pretty(I), format(', ')), Items),
-             pretty(LastItem), format(']'), !.
-pretty(nil) :- !. % output nothing on nil
-pretty(map(ID)) :- format('%{'),
-                   map_pairs(map(ID), AllPairs),
-                   append(Pairs, [LastKey-LastVal], AllPairs),
-                   maplist([K-V]>>(pretty(K), format(': '), pretty(V), format(',\n  ')), Pairs),
-                   pretty(LastKey), format(': '), pretty(LastVal), format('}').
-pretty(rec(Record,ID)) :-
+pretty(_,X) :- is_list(X), maplist(printable, X), string_codes(Str, X),
+               format('"~s"', [Str]), !.
+pretty(_,[]) :- !, format('[]').
+pretty(L,X) :- is_list(X), !, append(Items, [LastItem], X),
+               succ(L, L1),
+               format('['), maplist({L1}/[I]>>(pretty(L1,I), format(', ')), Items),
+               pretty(L1,LastItem), format(']'), !.
+pretty(0, nil) :- !. % output nothing on nil (toplevel)
+pretty(_, nil) :- !, write('nil').
+pretty(L, map(ID)) :- !, format('%{'),
+                      succ(L, L1),
+                      map_pairs(map(ID), AllPairs),
+                      append(Pairs, [LastKey-LastVal], AllPairs),
+                      maplist({L1}/[K-V]>>(pretty(L1,K), format(': '), pretty(L1,V), format(',\n  ')), Pairs),
+                      pretty(L1,LastKey), format(': '), pretty(L1,LastVal), format('}').
+pretty(L, rec(Record,D)) :-
+    !, succ(L,L1),
     format('~w{', [Record]),
-    pad(Record, Pad),
+    pad(L, Record, Pad),
     findall(Field-Value, (record_field(Record, _, Field),
-                          record_data(ID, Field, Value)),
+                          record_get(rec(Record,D), Field, Value)),
             FieldVals),
     once(append(FVs,[LastField-LastVal], FieldVals)),
-    maplist({Pad}/[F-V]>>(format('~w: ', [F]), pretty(V), format(',~n~s', [Pad])), FVs),
-    format('~w: ',[LastField]), pretty(LastVal), format('}').
+    maplist({L1,Pad}/[F-V]>>(format('~w: ', [F]), pretty(L1,V), format('~s', [Pad])), FVs),
+    format('~w: ',[LastField]), pretty(L1,LastVal), format('}').
 
 
-pretty(X) :- write(X).
+pretty(_L, X) :- write(X).
+
+pretty(X) :- pretty(0, X).
 
 prettyln(X) :- pretty(X), nl.
 
-pad(Atom, Pad) :-
+
+pad(0, Atom, [44,10|Pad]) :-
     atom_length(Atom, L),
     L1 is L + 1,
     length(Pad, L1),
-    maplist(=(32), Pad).
+    maplist(=(32), Pad), !.
+pad(_L, _, `, `) :- !.

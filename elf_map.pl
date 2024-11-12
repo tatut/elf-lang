@@ -1,5 +1,5 @@
 :- module(elf_map, [map_new/1, map_put/4, map_get/3, map_pairs/2,
-                    map_size/2, map_cleanup/0]).
+                    map_size/2]).
 :- use_module(library(rbtrees)).
 
 map_new(map(M)) :- rb_new(M).
@@ -13,5 +13,3 @@ map_pairs(map(M), Pairs) :-
     sort(Pairs0, Pairs).
 
 map_size(map(M), Size) :- rb_size(M, Size).
-
-map_cleanup.

@@ -63,47 +63,46 @@ _ age(_ age + 1),
 # Call method on it
 _ greet(\"world\")", `Hello world, my name is Elfo and I'm 667 years old!`).
 
-ex("HTML generation",
-   "# Define record for element
-Elt{parent, tag, attrs, content},
-Text{text},
+%% ex("HTML generation",
+%%    "# Define record for element
+%% Elt{tag, attrs, content},
+%% Text{text},
 
-Text.html: {my text},
+%% Text.html: {my text},
 
-# render as html
-Elt.html: {
- \"<%s\" fmt(my tag) ++
- my attrs mapcat({\" %s='%s'\" fmt($ first, $ last) }) ++
- \">\" ++
- my content mapcat(&html) ++
- \"</%s>\" fmt(my tag)
-},
+%% # render as html
+%% Elt.html: {
+%%  \"<%s\" fmt(my tag) ++
+%%  my attrs mapcat({\" %s='%s'\" fmt($ first, $ last) }) ++
+%%  \">\" ++
+%%  my content mapcat(&html) ++
+%%  \"</%s>\" fmt(my tag)
+%% },
 
-Elt.text: { my content(my content ++ [Text{text: $}]) },
+%% Elt.text: { my content(my content ++ [Text{text: $}]) },
 
-# Define a dynamic method handler to add child
-# this works by having elements as methods
-Elt.dynamic: {method,args|
- n: Elt{tag: method},
- (args len >= 1) if({n attrs(args first)}),
- (args len = 2) if({args last call(n)}),
- my content(my content ++ [n]),
- n
-},
+%% # Define a dynamic method handler to add child
+%% # this works by having elements as methods
+%% Elt.dynamic: {method,args|
+%%  n: Elt{tag: method},
+%%  (args len >= 1) if({n attrs(args first)}),
+%%  (args len = 2) if({args last call(n)}),
+%%  my content(my content ++ [n])
+%% },
 
-# Use the HTML generation to output some markup
+%% # Use the HTML generation to output some markup
 
-Todo{label, complete},
-todos: [Todo{label:\"simple HTML generation\", complete: true},
-        Todo{label:\"web framework?\", complete: false}],
-h: Elt{tag: \"div\"},
-_ ul([[\"class\",\"todos\"]],
-      {ul| todos do({ li: ul li([[\"class\", $ complete if(\"complete\", \"active\")]]),
-                      li input([[\"type\",\"checkbox\"]] ++ $ complete if([[\"checked\",\"1\"]])),
-                      li text($ label) }) }),
-h html",
-% FIXME: should support self closing tags, but not important for demo
-  `<div><ul class='todos'><li class='complete'><input type='checkbox' checked='1'></input>simple HTML generation</li><li class='active'><input type='checkbox'></input>web framework?</li></ul></div>`).
+%% Todo{label, complete},
+%% todos: [Todo{label:\"simple HTML generation\", complete: true},
+%%         Todo{label:\"web framework?\", complete: false}],
+%% h: Elt{tag: \"div\"},
+%% _ ul([[\"class\",\"todos\"]],
+%%       {ul| todos do({ li: ul li([[\"class\", $ complete if(\"complete\", \"active\")]]),
+%%                       li input([[\"type\",\"checkbox\"]] ++ $ complete if([[\"checked\",\"1\"]])),
+%%                       li text($ label) }) }),
+%% h html",
+%% % FIXME: should support self closing tags, but not important for demo
+%%   `<div><ul class='todos'><li class='complete'><input type='checkbox' checked='1'></input>simple HTML generation</li><li class='active'><input type='checkbox'></input>web framework?</li></ul></div>`).
 
 ex("Read file lines",
    "\"README.md\" lines first",

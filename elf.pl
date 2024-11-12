@@ -225,9 +225,9 @@ eval(record_def(Name, Fields, _Methods), record_ref(Name)) -->
       maplist({Name,Fields}/[I]>>(nth1(I, Fields, F),
                                   asserta(record_field(Name, I, F))), Is) }.
 
-eval(record(Name, Fields), R) -->
-    { record_new(Name, R) },
-    eval_record_fields(Name, R, Fields).
+eval(record(Name, Fields), R1) -->
+    { record_new(Name, R0) },
+    eval_record_fields(Fields, Name, R0, R1).
 
 eval(map_new(Fields), Map) -->
     { map_new(Map0) },
@@ -240,12 +240,11 @@ eval_map_fields([KeyExpr-ValExpr|Fields], Map0, MapOut) -->
     { map_put(Map0, Key, Val, Map1) },
     eval_map_fields(Fields, Map1, MapOut).
 
-eval_record_fields(_, _, []) --> [].
-eval_record_fields(Record, Instance, [Name-ValExpr|Fields]) -->
+eval_record_fields([], _, R, R) --> [].
+eval_record_fields([Name-ValExpr|Fields], Record, R0, R) -->
     eval(ValExpr, Val),
-    { record_field(Record, _, Name),
-      record_set(Instance, Name, Val) },
-    eval_record_fields(Record, Instance, Fields).
+    { record_set(R0, Name, Val, R1) },
+    eval_record_fields(Fields, Record, R1, R).
 
 eval_op(+,L,R,V) :- V is L + R.
 eval_op(-,L,R,V) :- V is L - R.
@@ -522,9 +521,8 @@ method(put, map(M), [], map(M)) :- !.
 method(Field, rec(Record,ID), [], Val) :- record_get(rec(Record,ID), Field, Val), !.
 
 % Record fields with 1 parameter act as setter
-method(Field, rec(Record,ID), [Val], rec(Record,ID)) :-
-    record_field(Record, _, Field),
-    record_set(rec(Record,ID), Field, Val), !.
+method(Field, rec(Record,R0), [Val], rec(Record,R1)) :-
+    record_set(rec(Record,R0), Field, Val, rec(Record,R1)), !.
 
 method('number?', N, [], Result) :- (number(N) -> Result=true; Result=false), !.
 method('list?', L, [], Result) :- (is_list(L) -> Result=true; Result=false), !.
@@ -669,7 +667,6 @@ initial_ctx(ctx(env{},[],nil)).
 
 exec(Stmts, Out) :-
     record_cleanup,
-    map_cleanup,
     initial_ctx(Ctx),
     once(phrase(eval_stmts(Stmts,nil,Out), [Ctx], _)).
 
@@ -705,7 +702,6 @@ repl_input(Codes) :-
 
 repl :-
     record_cleanup,
-    map_cleanup,
     initial_ctx(Ctx0),
     State = state(Ctx0),
     version(V),
