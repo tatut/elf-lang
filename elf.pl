@@ -285,6 +285,10 @@ eval_method(mcall(Name, Args), In, Out) -->
     eval_all(Args, ArgValues),
     method(Name, In, ArgValues, Out), { ! }.
 eval_method(sym(Name), In, Out) --> method(Name, In, [], Out), { ! }.
+eval_method(mcall(Name,Args), _In, _Out) -->
+    { length(Args,Arity), err('Method call failed: ~w/~w', [Name, Arity]) }.
+eval_method(sym(Name), _In, _Out) -->
+    { err('Method call failed: ~w/0', [Name]) }.
 
 eval_all([],[]) --> [].
 eval_all([In|Ins], [Out|Outs]) --> eval(In, Out), eval_all(Ins,Outs).
@@ -782,10 +786,13 @@ prg("[\"a\",\"b\",\"c!\"] fold({a,b| a ++ b})", `abc!`).
 prg("n: 5, \"x: 11, n * x\" eval", 55).
 
 err("n: 5, \"x: 11, n* \" eval", err('Eval error, parsing failed: "~w"', _)).
+err("[1,2,3] scum", err('Method call failed: ~w/0', [scum])).
+err("[1,2,3] mab(&inc)", err('Method call failed: ~w/~w', [mab, 1])).
 
 test(programs, [forall(prg(Source,Expected))]) :-
     once(run_string(Source,Actual)),
     Expected = Actual.
+
 
 test(examples, [forall(ex(_Name,Source,Expected))]) :-
     once(run_string(Source,Actual)),
