@@ -60,6 +60,11 @@
       }
 
       #examples { margin-left: 3em; }
+
+      #doc-tooltip {
+          white-space: pre-wrap;
+          max-width: 50vw;
+      }
     </style>
 
     <script>
@@ -78,7 +83,7 @@
                           if(r.value) {
                               let n = r.value.Name;
                               let d = r.value.Doc;
-                              cs.push({name: n, value: n, score: 100, docText: d, meta: "method"});
+                              cs.push({name: n, value: n, score: 100, docHTML: d, meta: "method"});
                           }
 
                       } while(!r.done);
@@ -91,6 +96,7 @@
               window.Prolog = swipl.prolog;
               swipl.prolog.consult("elf","examples","elf_dev")
                   .then((ok,err) => {
+                      Prolog.call("set_prolog_flag(elf_use_fetch,true).");
                       let opts = document.getElementById("examples");
                       opts.onchange = _=>{
                           console.log("code: ", opts.value);
@@ -139,11 +145,12 @@
           localStorage.setItem("elfcode", code);
           document.getElementById("log").innerHTML = ""; // clear log
           console.log("CODE", code);
-          let q = Prolog.query("elf:run_string_pretty(Str, Result)", {Str: code});
-          let r = q.next();
-          console.log(r);
-          document.getElementById('result').innerHTML = r.value.Result.v;
-          q.close();
+          Prolog.forEach(
+              "elf:run_string_pretty(Str, Result)", {Str: code},
+              r => {
+                  console.log(r);
+                  document.getElementById('result').innerHTML = r.Result.v;
+              });
       }
 
       function run() {

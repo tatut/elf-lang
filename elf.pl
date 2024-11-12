@@ -6,7 +6,9 @@
 :- use_module(elf_fmt).
 :- use_module(elf_record).
 :- use_module(elf_map).
+:- use_module(elf_file).
 :- set_prolog_flag(double_quotes, codes).
+:- set_prolog_flag(elf_use_fetch, false).
 %:- set_prolog_flag(stack_limit, 2_147_483_648).
 
 %:- det(method/4).
@@ -19,7 +21,7 @@ reserved(or).
 reserved('_').
 
 % Print error and fail
-err(Fmt, Args) :- format(string(Err), Fmt, Args), writeln(user_error, Err), throw(stop_on_err(Fmt,Args)).
+err(Fmt, Args) :- format(string(Err), Fmt, Args), writeln(user_error, Err), throw(err(Fmt,Args)).
 
 ws --> "#", string_without("\n", _), ws.
 ws --> [W], { code_type(W, space) }, ws.
@@ -425,6 +427,22 @@ method('%group'(Fn), M0, [X|Xs], M2) -->
       map_put(M0, Group, New, M1) },
     method('%group'(Fn), M1, Xs, M2).
 
+% Fold for nil or empty list is just the initial value (or nil if none specified)
+method(fold, [], [_, Init], Init) --> [].
+method(fold, nil, [_, Init], Init) --> [].
+method(fold, [], [_Fn], nil) --> [].
+method(fold, nil, [_Fn], nil) --> [].
+
+method(fold, Lst, Args, Result) -->
+    { is_list(Lst), length(Lst, L), L > 0,
+      (Args=[Fn,Init] -> true; Args=[Fn], Init=nil) },
+    method('%fold', Lst, [Fn, Init], Result).
+
+method('%fold', [], [_Fn, Acc], Acc) --> [].
+method('%fold', [V|Vs], [Fn, Acc], Result) -->
+    eval_call(Fn, [Acc, V], Res0),
+    method('%fold', Vs, [Fn, Res0], Result).
+
 method(do, Lst, [Fn], Result) -->
     foldfn(Lst, Fn, nil, nil, do_, '=', Result).
 
@@ -438,9 +456,16 @@ method(call, Fn, Args, Result) -->
     eval_call(Fn, Args, Result).
 
 method(use, Lib, [], nil) -->
-    { atom_codes(File, Lib),
-      once(phrase_from_file(statements(Stmts), File)) },
+    { file_codes(Lib, Codes),
+      once(phrase(statements(Stmts), Codes)) },
     eval_stmts(Stmts, nil, _).
+
+method(eval, Code, [], Result) -->
+    { once(phrase(statements(Stmts), Code))
+      -> true
+      ; string_codes(Str, Code),
+        err('Eval error, parsing failed: "~w"', [Str]) },
+    eval_stmts(Stmts, nil, Result).
 
 method(Name, rec(Record,ID), Args, Result) -->
     { get_record_method(Record, Name, Fun, Args, Args1) },
@@ -460,10 +485,8 @@ method(first, [], [], nil) :- !.
 method(last, Lst, [], Last) :- last(Lst, Last), !.
 method(nth, Lst, [N], Nth) :- nth0(N, Lst, Nth), !.
 method(lines, File, [], Lines) :-
-    atom_codes(F, File),
-    read_file_to_string(F, Str,[]),
-    string_lines(Str, LinesStr),
-    maplist(string_codes, LinesStr, Lines), !.
+    file_codes(File, Codes),
+    method(split, Codes, ["\n"], Lines).
 method(heads, [], [], []) :- !.
 method(heads, [H|T], [], [[H|T]|Heads]) :- method(heads, T, [], Heads), !.
 method(reverse, Lst, [], Rev) :- reverse(Lst,Rev), !.
@@ -528,7 +551,7 @@ method(debug, X, [], X) :- debug, !.
 method('_0', [N|_], [], N).
 method('_1', [_,N|_], [], N).
 method('_2', [_,_,N|_], [], N).
-
+method('nil?', V, _, B) :- (V=nil -> B=true; B=false).
 % for putting a breakpoint
 debug.
 
@@ -588,7 +611,10 @@ method(_2/0,"Return 3rd value of recipient."). % third
 method(sort/1,"sort(Fn)\nCall Fn on each value in recipient, return recipient sorted by the return values.").
 method(minw/1,"minw(Fn)\nCall Fn on each value in recipient, return list containing the smallest result and the value it corresponds with.").
 method(maxw/1,"maxw(Fn)\nCall Fn on each value in recipient, return list containing the largest result and the value it corresponds with.").
-
+method(use/1, "Load file denoted by recipient as elf code.\nAll record types, methods and names defined in the file are available after this call.").
+method(fold/2, "fold(Fn, Init)\nCall Fn with Init and first value of recipient, then with successive return values and values in recipient until all values are processed. If Init is omitted, nil is used.").
+method('nil?'/0, "True if recipient is nil, false otherwise.").
+method(eval/0, "Eval recipient as elf code, returns the last value.").
 
 falsy(nil).
 falsy(false).
@@ -751,6 +777,11 @@ prg("\"examples/elves.elf\" use, elves maxw(&age) first", 317).
 prg("\"examples/elves.elf\" use, elves minw(&age) _1 greet(\"world\")",
     `Hi world! My name is Biscuit Peppermint and I'm 75 years old!`).
 prg("%{\"foo\": 41, \"bar\": 665} map(&inc) at(\"foo\")", 42).
+prg("[4,6,32] fold({$1 + $2},0)", 42).
+prg("[\"a\",\"b\",\"c!\"] fold({a,b| a ++ b})", `abc!`).
+prg("n: 5, \"x: 11, n * x\" eval", 55).
+
+err("n: 5, \"x: 11, n* \" eval", err('Eval error, parsing failed: "~w"', _)).
 
 test(programs, [forall(prg(Source,Expected))]) :-
     once(run_string(Source,Actual)),
@@ -760,5 +791,9 @@ test(examples, [forall(ex(_Name,Source,Expected))]) :-
     once(run_string(Source,Actual)),
     Expected = Actual.
 
+test(errors, [forall(err(Code, Error))]) :-
+    catch(once(run_string(Code,_)),
+          Err,
+          Error=Err).
 
 :- end_tests(elf).

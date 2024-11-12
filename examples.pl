@@ -104,3 +104,13 @@ _ ul([[\"class\",\"todos\"]],
 h html",
 % FIXME: should support self closing tags, but not important for demo
   `<div><ul class='todos'><li class='complete'><input type='checkbox' checked='1'></input>simple HTML generation</li><li class='active'><input type='checkbox'></input>web framework?</li></ul></div>`).
+
+ex("Read file lines",
+   "\"README.md\" lines first",
+   `# Elf programming language`).
+
+ex("Import code",
+   "\"examples/elves.elf\" use,
+youngest: elves minw(&age) _1,
+youngest greet(\"world\")",
+   `Hi world! My name is Biscuit Peppermint and I'm 75 years old!`).
