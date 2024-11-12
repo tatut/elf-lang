@@ -13,7 +13,7 @@
 
 %:- det(method/4).
 
-version('0.1').
+version('0.2').
 
 % Reserved words that cannot be names.
 reserved(and).
