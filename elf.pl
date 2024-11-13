@@ -487,9 +487,7 @@ method(first, [H|_], [], H) :- !.
 method(first, [], [], nil) :- !.
 method(last, Lst, [], Last) :- last(Lst, Last), !.
 method(nth, Lst, [N], Nth) :- nth0(N, Lst, Nth), !.
-method(lines, File, [], Lines) :-
-    file_codes(File, Codes),
-    method(split, Codes, ["\n"], Lines).
+method(lines, File, [], Lines) :- file_lines(File, Lines).
 method(heads, [], [], []) :- !.
 method(heads, [H|T], [], [[H|T]|Heads]) :- method(heads, T, [], Heads), !.
 method(reverse, Lst, [], Rev) :- reverse(Lst,Rev), !.

@@ -1,4 +1,5 @@
 :- module(examples, [ex/2, ex/3]).
+:- use_module(elf_file).
 
 ex(Name, Code) :- ex(Name, Code, _Result).
 
@@ -113,3 +114,7 @@ ex("Import code",
 youngest: elves minw(&age) _1,
 youngest greet(\"world\")",
    `Hi world! My name is Biscuit Peppermint and I'm 75 years old!`).
+
+ex("Advent of Code 2023, day 1", Code, [56506, 56017]) :-
+   file_codes(`examples/aoc2023_day1.elf`, Cs),
+   string_codes(Code, Cs).

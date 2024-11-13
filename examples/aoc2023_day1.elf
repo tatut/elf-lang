@@ -1,0 +1,23 @@
+# Solution for Advent of Code 2023, day 1
+# https://adventofcode.com/2023/day/1
+#
+# Goes through lines, calculates calibration value for each line, and sums the values
+
+# Read input file to a list of lines
+input: "examples/aoc2023_day1.txt" lines,
+
+# Generic solution, sum calling calibration value on each line
+solve: {cal| input sum({cal call($)})},
+
+# Part1, just keep digits
+part1: solve call({$ keep(&digit), (10 * _ first) + _ last}),
+"Part1: %d" fmt(part1) print,
+
+# Part2 requires spelled variants as well
+spelled: [[0, "zero"], [1, "one"], [2, "two"], [3, "three"], [4, "four"],
+          [5, "five"], [6, "six"], [7, "seven"], [8, "eight"], [9, "nine"]],
+part2: solve call({line| line heads keep({h| spelled some({h starts?($ last) if($ first, h first digit) })}), (10 * _ first) + _ last}),
+"Part2: %d" fmt(part2) print,
+
+# Return both results
+[part1, part2]

@@ -100,18 +100,15 @@
                       let opts = document.getElementById("examples");
                       opts.onchange = _=>{
                           console.log("code: ", opts.value);
-                          let code = Prolog.query(
+                          Prolog.forEach(
                               "examples:ex(N,Code)",
-                              {N: new Prolog.String(opts.value)}).once().Code.v;
-                          editor.setValue(code); };
+                              {N: new Prolog.String(opts.value)},
+                              r => editor.setValue(r.Code.v));
+                          };
 
-                      let q = Prolog.query("examples:ex(N,_)");
-                      let r;
-                      do {
-                          r = q.next();
-                          opts.add(new Option(r.value.N.v, r.value.N.v));
-                      } while(!r.done);
-                      q.close();
+                      Prolog.forEach(
+                          "examples:ex(N,_)",
+                          r => { opts.add(new Option(r.N.v, r.N.v)); });
                   });
           })();
 
