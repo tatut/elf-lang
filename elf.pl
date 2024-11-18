@@ -673,6 +673,7 @@ initial_ctx(ctx(env{},[],nil)).
 
 exec(Stmts, Out) :-
     record_cleanup,
+    ref_cleanup,
     initial_ctx(Ctx),
     once(phrase(eval_stmts(Stmts,nil,Out), [Ctx], _)).
 

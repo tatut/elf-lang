@@ -1,4 +1,4 @@
-:- module(elf_ref, [ref_new/2, ref_set/2, ref_get/2]).
+:- module(elf_ref, [ref_new/2, ref_set/2, ref_get/2, ref_cleanup/0]).
 :- use_module(library(gensym)).
 :- dynamic ref/2.
 
@@ -9,3 +9,5 @@ ref_get(ref(ID), Val) :- ref(ID, Val).
 ref_set(ref(ID), NewVal) :-
     retractall(ref(ID, _)),
     asserta(ref(ID, NewVal)).
+
+ref_cleanup :- retractall(ref(_,_)).
