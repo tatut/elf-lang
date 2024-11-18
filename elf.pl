@@ -7,6 +7,7 @@
 :- use_module(elf_record).
 :- use_module(elf_map).
 :- use_module(elf_file).
+:- use_module(elf_ref).
 :- set_prolog_flag(double_quotes, codes).
 :- set_prolog_flag(elf_use_fetch, false).
 %:- set_prolog_flag(stack_limit, 2_147_483_648).
@@ -552,6 +553,10 @@ method('_0', [N|_], [], N).
 method('_1', [_,N|_], [], N).
 method('_2', [_,_,N|_], [], N).
 method('nil?', V, _, B) :- (V=nil -> B=true; B=false).
+method(ref, V, [], Ref) :- ref_new(Ref, V).
+method(val, ref(ID), [], Val) :- ref_get(ref(ID), Val).
+method(set, ref(ID), [Val], Val) :- ref_set(ref(ID), Val).
+
 % for putting a breakpoint
 debug.
 
@@ -615,6 +620,9 @@ method(use/1, "Load file denoted by recipient as elf code.\nAll record types, me
 method(fold/2, "fold(Fn, Init)\nCall Fn with Init and first value of recipient, then with successive return values and values in recipient until all values are processed. If Init is omitted, nil is used.").
 method('nil?'/0, "True if recipient is nil, false otherwise.").
 method(eval/0, "Eval recipient as elf code, returns the last value.").
+method(ref/0, "Create new mutable reference from recipient.").
+method(get/0, "Get current value of mutable reference.").
+method(set/1, "Set new value for mutable reference, returns value.").
 
 falsy(nil).
 falsy(false).
