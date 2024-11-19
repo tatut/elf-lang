@@ -364,6 +364,20 @@ method(if, Bool, [Then, _], Result) -->
     { \+ falsy(Bool) },
     eval_if(Bool, Then, Result).
 
+method(while, Fn, [Then], Result) -->
+    eval_call(Fn, [], Bool),
+    method('%while', Bool-Fn, Then, Result).
+method('%while', Bool-_, _, nil) --> { falsy(Bool) }.
+method('%while', Bool-Fn, Then, nil) -->
+    { \+ falsy(Bool) },
+    eval_call(Then, [Bool], _),
+    method(while, Fn, [Then], nil).
+method(swap, ref(ID), [Fn|Args], New) -->
+    { ref_get(ref(ID), Current),
+      append([Current],Args, CallArgs) },
+    eval_call(Fn, CallArgs, New),
+    { ref_set(ref(ID), New) }.
+
 % takes an array of truth values and array of actions
 % runs/returns value corresponding to first true value
 method(cond, [], [Else], Result) -->
@@ -555,7 +569,7 @@ method('_2', [_,_,N|_], [], N).
 method('nil?', V, _, B) :- (V=nil -> B=true; B=false).
 method(ref, V, [], Ref) :- ref_new(Ref, V).
 method(val, ref(ID), [], Val) :- ref_get(ref(ID), Val).
-method(set, ref(ID), [Val], Val) :- ref_set(ref(ID), Val).
+method(val, ref(ID), [Val], Val) :- ref_set(ref(ID), Val).
 
 % for putting a breakpoint
 debug.
@@ -621,8 +635,9 @@ method(fold/2, "fold(Fn, Init)\nCall Fn with Init and first value of recipient, 
 method('nil?'/0, "True if recipient is nil, false otherwise.").
 method(eval/0, "Eval recipient as elf code, returns the last value.").
 method(ref/0, "Create new mutable reference from recipient.").
-method(get/0, "Get current value of mutable reference.").
-method(set/1, "Set new value for mutable reference, returns value.").
+method(val/_, "Get or set current value of mutable reference.").
+method(swap/_, "swap(Fn,...Args)\nUpdate value of ref by calling Fn on its current value (and optional Args). Returns new value.").
+method(while/1, "while(Then)\nCall recipient fn repeatedly while it returns a truthy value, call Then with that value.").
 
 falsy(nil).
 falsy(false).
@@ -777,6 +792,10 @@ prg("[\"im\",\"so\",\"meta\",\"even\",\"this\",\"acronym...\"] mapcat({$ take(1)
 prg("\"foobar\" drop(3)", `bar`).
 prg("[[11,22,33],[44,55,66]] min(&first)", 11).
 prg("[[11,22,33],[44,55,66]] max(&first)", 44).
+prg("n: 5 ref, n swap(&inc)", 6).
+prg("n: 20 ref, n swap({a,b| a + b}, 22)", 42).
+prg("l: [] ref, n: 5 ref, { n swap(&dec) > 0 } while({ l val(l val ++ [n val]) }), l val",
+    [4,3,2,1]).
 prg("\"examples/elves.elf\" use, elves max(&age)", 317).
 prg("\"examples/elves.elf\" use, elves sort(&age) _0 age", 75).
 prg("\"examples/elves.elf\" use, elves minw(&age) _1 name", `Biscuit Peppermint`).
