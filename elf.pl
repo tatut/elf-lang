@@ -570,6 +570,10 @@ method('nil?', V, _, B) :- (V=nil -> B=true; B=false).
 method(ref, V, [], Ref) :- ref_new(Ref, V).
 method(val, ref(ID), [], Val) :- ref_get(ref(ID), Val).
 method(val, ref(ID), [Val], Val) :- ref_set(ref(ID), Val).
+method('in?', Candidate, [Lst], Val) :-
+    memberchk(Candidate, Lst) -> Val = true; Val = false.
+method('has?', Lst, [Candidate], Val) :-
+    memberchk(Candidate, Lst) -> Val = true; Val = false.
 
 % for putting a breakpoint
 debug.
@@ -638,6 +642,8 @@ method(ref/0, "Create new mutable reference from recipient.").
 method(val/_, "Get or set current value of mutable reference.").
 method(swap/_, "swap(Fn,...Args)\nUpdate value of ref by calling Fn on its current value (and optional Args). Returns new value.").
 method(while/1, "while(Then)\nCall recipient fn repeatedly while it returns a truthy value, call Then with that value.").
+method('in?'/1, "in?(List)\nTrue if recipient is a member of List, false otherwise.").
+method('has?'/1, "has?(Item)\nTrue if Item is member of recipient list, false otherwise.").
 
 falsy(nil).
 falsy(false).
