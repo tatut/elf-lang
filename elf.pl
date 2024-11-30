@@ -644,7 +644,7 @@ method(fmt/_,"fmt(Arg1,...,ArgN)\nFormat recipient string with given parameters,
 method(join/1,"join(Sep)\nJoin recipient list of lists into one list with separator.").
 method(split/1,"split(Sep)\nsplit recipient list into sublists at each occurence of separator Sep.").
 method(len/0,"Returns the length of a list.").
-method(at/1,"map(Key)\nReturn value at key or nil if not present.").
+method(at/1,"at(Key)\nReturn value at key or nil if not present.").
 method(put/_,"put(Key1,Val1,...,KeyN,ValN)\nPut values into map, returns new map with added mappings.").
 method('number?'/0,"True if recipient is a number, false otherwise.").
 method('list?'/0,"True if recipient is a list, false otherwise.").

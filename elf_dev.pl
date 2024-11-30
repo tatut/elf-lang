@@ -28,7 +28,7 @@ method_completion_(Prefix, Completion, Doc) :-
            '~w\n User defined method ¯\\_(ツ)_/¯', [Completion]).
 
 methods_start(Out) :-
-    write(Out, '<!DOCTYPE>\n<html><head><title>Elf method reference</title></head><body><h3>Elf methods</h3><table><thead><tr><td>Name</td><td>Doc</td></tr></td></thead><tbody>').
+    write(Out, '<!DOCTYPE>\n<html><head><title>Elf method reference</title><style>table, th, td { border: solid 1px black; border-collapse: collapse; } thead { background-color: lightgray; } th, td { padding: 0.4rem; } td { white-space: pre-wrap; font-family: monospace; vertical-align: top; }</style></head><body><h3>Elf methods</h3><table><thead><tr><td>Name</td><td>Doc</td></tr></td></thead><tbody>').
 
 methods_end(Out) :-
     write(Out, '</tbody></table></body></html>').
@@ -41,6 +41,7 @@ gen_methods :-
         open('methods.html', write, Out),
         (methods_start(Out),
          findall([Method, Doc], elf:method(Method/_, Doc), Methods),
-         maplist(method_row(Out), Methods),
+         sort(Methods, MethodsSorted),
+         maplist(method_row(Out), MethodsSorted),
          methods_end(Out)),
         close(Out)).
