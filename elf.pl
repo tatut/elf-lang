@@ -445,6 +445,30 @@ method('%group'(Fn), M0, [X|Xs], M2) -->
       map_put(M0, Group, New, M1) },
     method('%group'(Fn), M1, Xs, M2).
 
+method('splitw', L, [Fn], [Taken,Dropped]) -->
+    method('takew', L, [Fn], Taken),
+    method('dropw', L, [Fn], Dropped).
+
+method('takew', [], [_], []) --> [].
+method('takew', [X|Xs], [Fn], Result) -->
+    eval_call(Fn, [X], Bool),
+    method('%takew', [X|Xs], [Fn,Bool], Result).
+method('%takew', _, [_, Falsy], []) -->
+    [],
+    { falsy(Falsy) }.
+method('%takew', [X|Xs], [Fn, Truthy], [X|Result]) -->
+    { \+ falsy(Truthy) },
+    method('takew', Xs, [Fn], Result).
+method('dropw', [X|Xs], [Fn], Result) -->
+    eval_call(Fn, [X], Bool),
+    method('%dropw', [X|Xs], [Fn,Bool], Result).
+method('%dropw', Lst, [_, Falsy], Lst) -->
+    [],
+    { falsy(Falsy) }.
+method('%dropw', [_|Xs], [Fn,Truthy], Result) -->
+    { \+ falsy(Truthy) },
+    method('dropw', Xs, [Fn], Result).
+
 % Fold for nil or empty list is just the initial value (or nil if none specified)
 method(fold, [], [_, Init], Init) --> [].
 method(fold, nil, [_, Init], Init) --> [].
@@ -485,14 +509,27 @@ method(eval, Code, [], Result) -->
         err('Eval error, parsing failed: "~w"', [Str]) },
     eval_stmts(Stmts, nil, Result).
 
+method(match, [], [[]], []) --> [].
+method(match, [Spec|Specs], [Input], [R|Result]) -->
+    { is_callable(Spec) },
+    eval_call(Spec, Input, [R|Rest]),
+    method(match, Specs, Rest, Result).
+
+method(match, [Spec|Specs], [Input], Result) -->
+    { is_list(Spec),
+      append(Spec, Rest, Input) },
+    method(match, Specs, [Rest], Result).
+
+
 method(Name, rec(Record,ID), Args, Result) -->
     { get_record_method(Record, Name, Fun, Args, Args1) },
     eval_call_my(Fun, rec(Record,ID), Args1, Result).
 
+
 % Any pure Prolog method, that doesn't need DCG evaluation context
 method(Method, Me, Args, Result) -->
     [],
-    { method(Method, Me, Args, Result) }.
+    {  method(Method, Me, Args, Result) }.
 
 method(digit, N, [], nil) :- \+ between(48, 57, N), !.
 method(digit, N, [], D) :- between(48,57,N), !, D is N - 48.
@@ -644,6 +681,9 @@ method(swap/_, "swap(Fn,...Args)\nUpdate value of ref by calling Fn on its curre
 method(while/1, "while(Then)\nCall recipient fn repeatedly while it returns a truthy value, call Then with that value.").
 method('in?'/1, "in?(List)\nTrue if recipient is a member of List, false otherwise.").
 method('has?'/1, "has?(Item)\nTrue if Item is member of recipient list, false otherwise.").
+method('takew'/1, "takew(Pred)\nReturn items of recipient list while calling Pred on item returns truthy.").
+method('dropw'/1, "dropw(Pred)\nReturn items of recipient after the first Pred call on item returns falsy.").
+method('splitw'/1, "splitw(Pred)\nCombines takew and dropw. Return list of [taken, dropped].").
 
 falsy(nil).
 falsy(false).
@@ -812,6 +852,8 @@ prg("%{\"foo\": 41, \"bar\": 665} map(&inc) at(\"foo\")", 42).
 prg("[4,6,32] fold({$1 + $2},0)", 42).
 prg("[\"a\",\"b\",\"c!\"] fold({a,b| a ++ b})", `abc!`).
 prg("n: 5, \"x: 11, n * x\" eval", 55).
+
+prg("\"24dec\" splitw(&digit)", [`24`, `dec`]).
 
 err("n: 5, \"x: 11, n* \" eval", err('Eval error, parsing failed: "~w"', _)).
 err("[1,2,3] scum", err('Method call failed: ~w/0', [scum])).
