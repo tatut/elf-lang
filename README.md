@@ -9,6 +9,7 @@ This is the Elf programming language.
 Designed to get help those elves get their xmas duties done
 without tripping into lava.
 
+Try the playground at: https://tatut.github.io/elf-lang/
 
 ## Syntax and evaluation
 
@@ -126,7 +127,3 @@ There is a special method called `dynamic` that will be invoked for any
 methods not defined. This can be used for meta-programming.
 The method gets the name of the undefined method as string and a list
 of its arguments.
-
-# Standard library
-
-This section lists all builtin methods.

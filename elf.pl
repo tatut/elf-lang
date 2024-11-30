@@ -14,7 +14,7 @@
 
 %:- det(method/4).
 
-version('0.2').
+version('0.3').
 
 % Reserved words that cannot be names.
 reserved(and).
@@ -668,9 +668,9 @@ method(sortu/0,"Return recipient as sorted without duplicates.").
 method(drop/1,"drop(N)\nReturn recipient without the first N values.").
 method(take/1,"take(N)\nReturn the first N values of recipient.").
 method(debug/0,"Print internal interpreter state.").
-method(_0/0,"Return 1st value of recipient."). % first
-method(_1/0,"Return 2nd value of recipient."). % second
-method(_2/0,"Return 3rd value of recipient."). % third
+method('_0'/0,"Return 1st value of recipient."). % first
+method('_1'/0,"Return 2nd value of recipient."). % second
+method('_2'/0,"Return 3rd value of recipient."). % third
 method(sort/1,"sort(Fn)\nCall Fn on each value in recipient, return recipient sorted by the return values.").
 method(minw/1,"minw(Fn)\nCall Fn on each value in recipient, return list containing the smallest result and the value it corresponds with.").
 method(maxw/1,"maxw(Fn)\nCall Fn on each value in recipient, return list containing the largest result and the value it corresponds with.").

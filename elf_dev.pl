@@ -26,3 +26,21 @@ method_completion_(Prefix, Completion, Doc) :-
     atom_prefix(Completion, Prefix),
     format(string(Doc),
            '~w\n User defined method ¯\\_(ツ)_/¯', [Completion]).
+
+methods_start(Out) :-
+    write(Out, '<!DOCTYPE>\n<html><head><title>Elf method reference</title></head><body><h3>Elf methods</h3><table><thead><tr><td>Name</td><td>Doc</td></tr></td></thead><tbody>').
+
+methods_end(Out) :-
+    write(Out, '</tbody></table></body></html>').
+
+method_row(Out, Args) :-
+    format(Out, '<tr><td>~s</td><td>~s</td></tr>', Args).
+
+gen_methods :-
+    setup_call_cleanup(
+        open('methods.html', write, Out),
+        (methods_start(Out),
+         findall([Method, Doc], elf:method(Method/_, Doc), Methods),
+         maplist(method_row(Out), Methods),
+         methods_end(Out)),
+        close(Out)).
