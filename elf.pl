@@ -859,6 +859,7 @@ prg("n: 5, \"x: 11, n * x\" eval", 55).
 
 prg("\"24dec\" splitw(&digit)", [`24`, `dec`]).
 prg("\"24dec\" read", [24, `dec`]).
+prg("[&read, \"-\", &read, \"-\", &read] match(\"2024-12-24\")", [2024,12,24]).
 
 err("n: 5, \"x: 11, n* \" eval", err('Eval error, parsing failed: "~w"', _)).
 err("[1,2,3] scum", err('Method call failed: ~w/0', [scum])).
