@@ -459,6 +459,7 @@ method('%takew', _, [_, Falsy], []) -->
 method('%takew', [X|Xs], [Fn, Truthy], [X|Result]) -->
     { \+ falsy(Truthy) },
     method('takew', Xs, [Fn], Result).
+method('dropw', [], [_], []) --> [].
 method('dropw', [X|Xs], [Fn], Result) -->
     eval_call(Fn, [X], Bool),
     method('%dropw', [X|Xs], [Fn,Bool], Result).
@@ -511,8 +512,8 @@ method(eval, Code, [], Result) -->
 
 method(match, [], [[]], []) --> [].
 method(match, [Spec|Specs], [Input], [R|Result]) -->
-    { is_callable(Spec) },
-    eval_call(Spec, Input, [R|Rest]),
+    { is_callable(Spec), writeln(match_call(specs([Spec|Specs]), input(Input))) },
+    eval_call(Spec, [Input], [R|Rest]),
     method(match, Specs, Rest, Result).
 
 method(match, [Spec|Specs], [Input], Result) -->
@@ -611,6 +612,8 @@ method('in?', Candidate, [Lst], Val) :-
     memberchk(Candidate, Lst) -> Val = true; Val = false.
 method('has?', Lst, [Candidate], Val) :-
     memberchk(Candidate, Lst) -> Val = true; Val = false.
+method(read, Lst, [], [Val, Rest]) :-
+    phrase(value(val(Val)), Lst, Rest).
 
 % for putting a breakpoint
 debug.
@@ -684,6 +687,7 @@ method('has?'/1, "has?(Item)\nTrue if Item is member of recipient list, false ot
 method('takew'/1, "takew(Pred)\nReturn items of recipient list while calling Pred on item returns truthy.").
 method('dropw'/1, "dropw(Pred)\nReturn items of recipient after the first Pred call on item returns falsy.").
 method('splitw'/1, "splitw(Pred)\nCombines takew and dropw. Return list of [taken, dropped].").
+method(read/0, "Read an Elf value (number, string, boolean or nil) from recipient string. Returns a list containing the read value and the rest of the string.").
 
 falsy(nil).
 falsy(false).
@@ -854,6 +858,7 @@ prg("[\"a\",\"b\",\"c!\"] fold({a,b| a ++ b})", `abc!`).
 prg("n: 5, \"x: 11, n * x\" eval", 55).
 
 prg("\"24dec\" splitw(&digit)", [`24`, `dec`]).
+prg("\"24dec\" read", [24, `dec`]).
 
 err("n: 5, \"x: 11, n* \" eval", err('Eval error, parsing failed: "~w"', _)).
 err("[1,2,3] scum", err('Method call failed: ~w/0', [scum])).
