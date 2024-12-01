@@ -24,9 +24,11 @@ file_string(FileName, String) :-
     prolog_flag(elf_use_fetch, false), !,
     string_codes(FileStr, FileName),
     read_file_to_string(FileStr, String, []).
-   
+
 file_lines(FileName, LinesCs) :-
     file_string(FileName, String),
-    split_string(String, "\n", "", Lines),
+    split_string(String, "\n", "", LinesIn),
+    ( last(LinesIn, "")
+    -> append(Lines, [""], LinesIn)
+    ; Lines = LinesIn),
     maplist(string_codes, Lines, LinesCs).
-    
