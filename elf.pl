@@ -614,6 +614,10 @@ method('has?', Lst, [Candidate], Val) :-
     memberchk(Candidate, Lst) -> Val = true; Val = false.
 method(read, Lst, [], [Val, Rest]) :-
     phrase(value(val(Val)), Lst, Rest).
+method(else, Me, [Or], Val) :-
+    falsy(Me)
+    -> Val=Or
+    ; Val=Me.
 
 % for putting a breakpoint
 debug.
@@ -688,6 +692,7 @@ method('takew'/1, "takew(Pred)\nReturn items of recipient list while calling Pre
 method('dropw'/1, "dropw(Pred)\nReturn items of recipient after the first Pred call on item returns falsy.").
 method('splitw'/1, "splitw(Pred)\nCombines takew and dropw. Return list of [taken, dropped].").
 method(read/0, "Read an Elf value (number, string, boolean or nil) from recipient string. Returns a list containing the read value and the rest of the string.").
+method(else/1, "else(V)\nReturn recipient value if it is truthy, otherwise return V.").
 
 falsy(nil).
 falsy(false).
@@ -867,6 +872,9 @@ prg("n: 5, \"x: 11, n * x\" eval", 55).
 prg("\"24dec\" splitw(&digit)", [`24`, `dec`]).
 prg("\"24dec\" read", [24, `dec`]).
 prg("[&read, \"-\", &read, \"-\", &read] match(\"2024-12-24\")", [2024,12,24]).
+prg("n: nil, n else(10)", 10).
+prg("n: 42, n else(123)", 42).
+
 
 err("n: 5, \"x: 11, n* \" eval", err('Eval error, parsing failed: "~w"', _)).
 err("[1,2,3] scum", err('Method call failed: ~w/0', [scum])).
