@@ -511,10 +511,13 @@ method(eval, Code, [], Result) -->
     eval_stmts(Stmts, nil, Result).
 
 method(match, [], [[]], []) --> [].
-method(match, [Spec|Specs], [Input], [R|Result]) -->
+method(match, [Spec|Specs], [Input], Out) -->
     { is_callable(Spec) },
     eval_call(Spec, [Input], [R|Rest]),
-    method(match, Specs, Rest, Result).
+    method(match, Specs, Rest, Result),
+    { R = nil
+      -> Out=Result
+      ; append([R], Result, Out) }.
 
 method(match, [Spec|Specs], [Input], Result) -->
     { is_list(Spec),
@@ -618,6 +621,9 @@ method(else, Me, [Or], Val) :-
     falsy(Me)
     -> Val=Or
     ; Val=Me.
+method(ws, Lst, [], [nil,Result]) :-
+    phrase(blanks, Lst, Result).
+
 
 % for putting a breakpoint
 debug.
@@ -693,7 +699,8 @@ method('dropw'/1, "dropw(Pred)\nReturn items of recipient after the first Pred c
 method('splitw'/1, "splitw(Pred)\nCombines takew and dropw. Return list of [taken, dropped].").
 method(read/0, "Read an Elf value (number, string, boolean or nil) from recipient string. Returns a list containing the read value and the rest of the string.").
 method(else/1, "else(V)\nReturn recipient value if it is truthy, otherwise return V.").
-
+method(ws/0, "Parsing method to skip 0 or more whitespace characters. Returns [nil, rest] where rest is the string after the whitespace.").
+method(match/1, "match(Input)\nParse input by matching it to specs in recipient list. Each spec can be a list expected at this position or a function that parses from the current position. Parsing function must return a parsed value and the rest of the list. Returns list of all non-nil values parsed by parsing functions.").
 falsy(nil).
 falsy(false).
 
