@@ -512,7 +512,7 @@ method(eval, Code, [], Result) -->
 
 method(match, [], [[]], []) --> [].
 method(match, [Spec|Specs], [Input], [R|Result]) -->
-    { is_callable(Spec), writeln(match_call(specs([Spec|Specs]), input(Input))) },
+    { is_callable(Spec) },
     eval_call(Spec, [Input], [R|Rest]),
     method(match, Specs, Rest, Result).
 
@@ -748,6 +748,13 @@ exec(Stmts, Out, ctx(E,A,P), CtxOut) :-
 run(File) :-
     once(phrase_from_file(statements(Stmts), File)),
     exec(Stmts, _Out).
+
+main :-
+    current_prolog_flag(argv, []),
+    repl.
+main :-
+    current_prolog_flag(argv, [Script]),
+    run(Script).
 
 run_codes(Input, Out) :-
     %call_with_time_limit(1, (phrase(statements(Stmts), Input))),
