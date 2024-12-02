@@ -62,6 +62,8 @@ prev(prevval) --> "_".
 ref(R) --> symbol(R); arg_(R); prev(R).
 
 mref(mref(Name)) --> "&", csym(Name).
+mref(mref(Op)) --> "&", op_(Op).
+
 mcall(mcall(Name, Args)) --> symbol_(Name), "(", ws, mcall_args(Args), ")".
 assign(assign(Name, Expr)) --> symbol_(Name), ":", ws, exprt(Expr).
 assign(assign(Name1, [Name2], Expr)) --> symbol_(Name1), ".", symbol_(Name2), ":",
@@ -300,9 +302,12 @@ eval_call(fun(ArgNames, Stmts), Args, Result) -->
     eval_stmts(Stmts, nil, Result),
     pop_env.
 
+eval_call(mref(op(Op)), [[Left|Right]], Result) -->
+    [],
+    { eval_op(Op,Left,Right,Result) }.
+
 eval_call(mref(Name), [Me|Args], Result) -->
-    %{ length(Args, ArgC),
-    %  method(Name/ArgC) -> true; throw(no_such_method_error(name(Name),arity(ArgC))) },
+    { atom(Name) },
     method(Name, Me, Args, Result).
 
 bind_args([], _) --> []. % extra arguments, might be $ references, don't care
@@ -890,6 +895,7 @@ prg("n: 42, n else(123)", 42).
 prg("[1,2,3] all?({$ > 0})", true).
 prg("[1,0,3] all?({$ > 0})", false).
 prg("[] all?(&print)", true). % vacuous truth
+prg("[[1,2],[5,1],[10,42]] map(&<)", [true,false,true]).
 
 err("n: 5, \"x: 11, n* \" eval", err('Eval error, parsing failed: "~w"', _)).
 err("[1,2,3] scum", err('Method call failed: ~w/0', [scum])).
