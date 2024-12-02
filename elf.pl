@@ -399,7 +399,8 @@ method(keep, Lst, [Fn], Result) -->
     foldfn(Lst, Fn, [], [], keep_, reverse, Result).
 method(map, Lst, [Fn], Result) -->
     foldfn(Lst, Fn, [], [], map_, reverse, Result).
-
+method(count, Lst, [Fn], Result) -->
+    foldfn(Lst, Fn, 0, 0, count_, '=', Result).
 method(sort, Lst, [Fn], Result) -->
     foldfnw(Lst, Fn, [], [], map_, keysort, Result0),
     { pairs_values(Result0, Result) }.
@@ -730,6 +731,7 @@ Example:
 [1,2,3,4] part(2,1)
 => [[1,2],[2,3],[3,4]]
 ").
+method(count/_, "count(Fn)\nCount the number of values in recipient where Fn returns truthy.").
 
 falsy(nil).
 falsy(false).
@@ -740,7 +742,9 @@ keep_(Lst, false, Lst) :- !.
 keep_(Lst, X, [X|Lst]) :- !.
 map_(Lst, Item, [Item|Lst]) :- !.
 do_(_, _, nil) :- !.
-
+count_(Acc, nil, Acc) :- !.
+count_(Acc, false, Acc) :- !.
+count_(Acc, _, Acc1) :- succ(Acc,Acc1).
 min_(nil, X, X) :- !.
 min_(L, R, Out) :- (L < R -> Out=L;Out=R), !.
 max_(nil, X, X) :- !.
@@ -918,6 +922,7 @@ prg("[[1,2],[5,1],[10,42]] map(&<)", [true,false,true]).
 prg("\"hello\" part(2,1)", [`he`,`el`,`ll`,`lo`]).
 prg("\"hello\" part(2)", [`he`,`ll`,`o`]).
 prg("[] part(666)", []).
+prg("\"4digit20here\" count(&digit)", 3).
 err("n: 5, \"x: 11, n* \" eval", err('Eval error, parsing failed: "~w"', _)).
 err("[1,2,3] scum", err('Method call failed: ~w/0', [scum])).
 err("[1,2,3] mab(&inc)", err('Method call failed: ~w/~w', [mab, 1])).
