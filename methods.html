@@ -18,12 +18,19 @@ True if recipient is a member of List, false otherwise.</td></tr><tr><td>inc</td
 Join recipient list of lists into one list with separator.</td></tr><tr><td>keep</td><td>keep(Fn)
 Call Fn on all values in recipient, returns list of all results that are not nil.</td></tr><tr><td>last</td><td>Return last value in recipient.</td></tr><tr><td>len</td><td>Returns the length of a list.</td></tr><tr><td>lines</td><td>Return list of lines in file.</td></tr><tr><td>list?</td><td>True if recipient is a list, false otherwise.</td></tr><tr><td>map</td><td>map(Fn)
 Call Fn on all values in recipient and returns values as a list.</td></tr><tr><td>map?</td><td>True if recipient is a map, false otherwise.</td></tr><tr><td>mapcat</td><td>mapcat(Fn)
-Call Fn on all values in recipient appending all resulting lists in one list. Fn must return a list or nil.</td></tr><tr><td>max</td><td>Return the maximum value of a list of numbers.</td></tr><tr><td>max</td><td>max(Fn)
+Call Fn on all values in recipient appending all resulting lists in one list. Fn must return a list or nil.</td></tr><tr><td>match</td><td>match(Input)
+Parse input by matching it to specs in recipient list. Each spec can be a list expected at this position or a function that parses from the current position. Parsing function must return a parsed value and the rest of the list. Returns list of all non-nil values parsed by parsing functions.</td></tr><tr><td>max</td><td>Return the maximum value of a list of numbers.</td></tr><tr><td>max</td><td>max(Fn)
 Call Fn on each value in recipient, return the maximum value.</td></tr><tr><td>maxw</td><td>maxw(Fn)
 Call Fn on each value in recipient, return list containing the largest result and the value it corresponds with.</td></tr><tr><td>min</td><td>Return the minimum value of a list of numbers.</td></tr><tr><td>min</td><td>min(Fn)
 Call Fn on each value in recipient, return the minimum value.</td></tr><tr><td>minw</td><td>minw(Fn)
 Call Fn on each value in recipient, return list containing the smallest result and the value it corresponds with.</td></tr><tr><td>nil?</td><td>True if recipient is nil, false otherwise.</td></tr><tr><td>not</td><td>Return negated boolean of recipient.</td></tr><tr><td>nth</td><td>nth(N)
-Return the Nth value in recipient.</td></tr><tr><td>number?</td><td>True if recipient is a number, false otherwise.</td></tr><tr><td>print</td><td>Print value to standard output.</td></tr><tr><td>put</td><td>put(Key1,Val1,...,KeyN,ValN)
+Return the Nth value in recipient.</td></tr><tr><td>number?</td><td>True if recipient is a number, false otherwise.</td></tr><tr><td>part</td><td>part(Size,[Skip])
+Partition list into sublists of Size. If skip is omitted it is the same as Size. If skip is omitted, the last list may be shorter than the others if the input is not evenly sized.
+
+Example:
+[1,2,3,4] part(2,1)
+=> [[1,2],[2,3],[3,4]]
+</td></tr><tr><td>print</td><td>Print value to standard output.</td></tr><tr><td>put</td><td>put(Key1,Val1,...,KeyN,ValN)
 Put values into map, returns new map with added mappings.</td></tr><tr><td>read</td><td>Read an Elf value (number, string, boolean or nil) from recipient string. Returns a list containing the read value and the rest of the string.</td></tr><tr><td>ref</td><td>Create new mutable reference from recipient.</td></tr><tr><td>reverse</td><td>Return recipient reversed.</td></tr><tr><td>round</td><td>Return the closest integer to recipient.</td></tr><tr><td>some</td><td>some(Pred)
 Returns the first value in recipient where the result of calling Pred on it returns truthy, or nil otherwise.</td></tr><tr><td>sort</td><td>Return recipient as sorted.</td></tr><tr><td>sort</td><td>sort(Fn)
 Call Fn on each value in recipient, return recipient sorted by the return values.</td></tr><tr><td>sortu</td><td>Return recipient as sorted without duplicates.</td></tr><tr><td>split</td><td>split(Sep)
@@ -36,4 +43,4 @@ Return items of recipient list while calling Pred on item returns truthy.</td></
 Return list of successive numbers from recipient to Upto.</td></tr><tr><td>to</td><td>to(Upto, Skip)
 Return list of successive numbers from recipient to Upto, incrementing with Skip.</td></tr><tr><td>use</td><td>Load file denoted by recipient as elf code.
 All record types, methods and names defined in the file are available after this call.</td></tr><tr><td>val</td><td>Get or set current value of mutable reference.</td></tr><tr><td>while</td><td>while(Then)
-Call recipient fn repeatedly while it returns a truthy value, call Then with that value.</td></tr></tbody></table></body></html>
+Call recipient fn repeatedly while it returns a truthy value, call Then with that value.</td></tr><tr><td>ws</td><td>Parsing method to skip 0 or more whitespace characters. Returns [nil, rest] where rest is the string after the whitespace.</td></tr></tbody></table></body></html>

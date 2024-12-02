@@ -634,7 +634,19 @@ method(else, Me, [Or], Val) :-
     ; Val=Me.
 method(ws, Lst, [], [nil,Result]) :-
     phrase(blanks, Lst, Result).
-
+method(part, [], _, []) :- !.
+method(part, Lst, [Size], [Lst]) :- length(Lst, L), L < Size, !.
+method(part, Lst, [Size], [First|Lists]) :-
+    length(First, Size),
+    append(First, Rest, Lst),
+    method(part, Rest, [Size], Lists).
+method(part, Lst, [Size,_Skip], []) :- length(Lst, L), L < Size, !.
+method(part, Lst, [Size, Skip], [First|Lists]) :-
+    length(First, Size),
+    append(First, _, Lst),
+    length(Drop, Skip),
+    append(Drop, Rest, Lst),
+    method(part, Rest, [Size,Skip], Lists).
 
 % for putting a breakpoint
 debug.
@@ -712,6 +724,13 @@ method(read/0, "Read an Elf value (number, string, boolean or nil) from recipien
 method(else/1, "else(V)\nReturn recipient value if it is truthy, otherwise return V.").
 method(ws/0, "Parsing method to skip 0 or more whitespace characters. Returns [nil, rest] where rest is the string after the whitespace.").
 method(match/1, "match(Input)\nParse input by matching it to specs in recipient list. Each spec can be a list expected at this position or a function that parses from the current position. Parsing function must return a parsed value and the rest of the list. Returns list of all non-nil values parsed by parsing functions.").
+method(part/_, "part(Size,[Skip])\nPartition list into sublists of Size. If skip is omitted it is the same as Size. If skip is omitted, the last list may be shorter than the others if the input is not evenly sized.
+
+Example:
+[1,2,3,4] part(2,1)
+=> [[1,2],[2,3],[3,4]]
+").
+
 falsy(nil).
 falsy(false).
 
@@ -896,7 +915,9 @@ prg("[1,2,3] all?({$ > 0})", true).
 prg("[1,0,3] all?({$ > 0})", false).
 prg("[] all?(&print)", true). % vacuous truth
 prg("[[1,2],[5,1],[10,42]] map(&<)", [true,false,true]).
-
+prg("\"hello\" part(2,1)", [`he`,`el`,`ll`,`lo`]).
+prg("\"hello\" part(2)", [`he`,`ll`,`o`]).
+prg("[] part(666)", []).
 err("n: 5, \"x: 11, n* \" eval", err('Eval error, parsing failed: "~w"', _)).
 err("[1,2,3] scum", err('Method call failed: ~w/0', [scum])).
 err("[1,2,3] mab(&inc)", err('Method call failed: ~w/~w', [mab, 1])).
