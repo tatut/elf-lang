@@ -418,6 +418,12 @@ method(some, [H|_], [Fn], Result) -->
     eval_call(Fn, [H], Result),
     { \+ falsy(Result), ! }.
 
+method('all?', [], [_], true) --> []. % vacuous truth
+method('all?', [X|_], [Fn], false) --> eval_call(Fn, [X], Res), { falsy(Res) }.
+method('all?', [X|Xs], [Fn], Result) -->
+    eval_call(Fn, [X], Res), { \+ falsy(Res) },
+    method('all?', Xs, [Fn], Result).
+
 method(mapcat, nil, _, []) --> [].
 method(mapcat, [], _, []) --> [].
 method(mapcat, [H|T], [Fn], Result) -->
@@ -810,7 +816,7 @@ repl :-
              nb_setarg(1, State, ctx(E1,[],Result)))
         ; format('Execution failed ¯\\_(ツ)_/¯\n',[])),
         fail)
-    ; (format('Parse error\n', []), fail)).
+    ; (format('Parse error (╯°□°)╯︵ ┻━┻\n', []), fail)).
 
 
 :- begin_tests(elf).
@@ -881,7 +887,9 @@ prg("\"24dec\" read", [24, `dec`]).
 prg("[&read, \"-\", &read, \"-\", &read] match(\"2024-12-24\")", [2024,12,24]).
 prg("n: nil, n else(10)", 10).
 prg("n: 42, n else(123)", 42).
-
+prg("[1,2,3] all?({$ > 0})", true).
+prg("[1,0,3] all?({$ > 0})", false).
+prg("[] all?(&print)", true). % vacuous truth
 
 err("n: 5, \"x: 11, n* \" eval", err('Eval error, parsing failed: "~w"', _)).
 err("[1,2,3] scum", err('Method call failed: ~w/0', [scum])).
