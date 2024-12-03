@@ -525,16 +525,29 @@ method(eval, Code, [], Result) -->
 method(match, [], [[]], []) --> [].
 method(match, [Spec|Specs], [Input], Out) -->
     { is_callable(Spec) },
-    eval_call(Spec, [Input], [R|Rest]),
-    method(match, Specs, Rest, Result),
-    { R = nil
-      -> Out=Result
-      ; append([R], Result, Out) }.
+    eval_call(Spec, [Input], MatchResult),
+    method('%match', Specs, MatchResult, Out), !.
+
+% If previous match method call failed, catch it and return nil
+method(match, [Spec|_Specs], [_Input], nil) -->
+    [],
+    { is_callable(Spec) }.
 
 method(match, [Spec|Specs], [Input], Result) -->
-    { is_list(Spec),
-      append(Spec, Rest, Input) },
+    { is_list(Spec), append(Spec, Rest, Input) },
     method(match, Specs, [Rest], Result).
+method(match, [Spec|_], [Input], nil) -->
+    { is_list(Spec), \+ append(Spec, _, Input) }.
+
+% Don't continue if no match, result of whole match is nil
+method('%match', _, nil, nil) --> [].
+method('%match', Specs, [R|Rest], Out) -->
+    method(match, Specs, Rest, Result),
+    { Result = nil
+      -> Out = nil
+      ; (R = nil
+        -> Out=Result
+        ; append([R], Result, Out)) }.
 
 
 method(Name, rec(Record,ID), Args, Result) -->
@@ -556,6 +569,7 @@ method(first, [], [], nil) :- !.
 method(last, Lst, [], Last) :- last(Lst, Last), !.
 method(nth, Lst, [N], Nth) :- nth0(N, Lst, Nth), !.
 method(lines, File, [], Lines) :- file_lines(File, Lines).
+method(contents, File, [], Contents) :- file_codes(File, Contents).
 method(heads, [], [], []) :- !.
 method(heads, [H|T], [], [[H|T]|Heads]) :- method(heads, T, [], Heads), !.
 method(reverse, Lst, [], Rev) :- reverse(Lst,Rev), !.
@@ -648,6 +662,11 @@ method(part, Lst, [Size, Skip], [First|Lists]) :-
     length(Drop, Skip),
     append(Drop, Rest, Lst),
     method(part, Rest, [Size,Skip], Lists).
+method('empty?', [], [], true) :- !.
+method('empty?', nil, [], true) :- !.
+method('empty?', map(M), [],  true) :- rb_new(M0), M0=M, !.
+method('empty?', _, [], false) :- !. % anything else is not
+
 
 % for putting a breakpoint
 debug.
@@ -732,7 +751,8 @@ Example:
 => [[1,2],[2,3],[3,4]]
 ").
 method(count/_, "count(Fn)\nCount the number of values in recipient where Fn returns truthy.").
-
+method('empty?'/0, "True if recipient is nil, the empty list or an empty map.").
+method('contents'/0, "Return contents of recipient file as string.").
 falsy(nil).
 falsy(false).
 
@@ -913,6 +933,9 @@ prg("n: 5, \"x: 11, n * x\" eval", 55).
 prg("\"24dec\" splitw(&digit)", [`24`, `dec`]).
 prg("\"24dec\" read", [24, `dec`]).
 prg("[&read, \"-\", &read, \"-\", &read] match(\"2024-12-24\")", [2024,12,24]).
+prg("[\"mul\", &read] match(\"mul420\")", [420]).
+prg("[\"mul\", &read] match(\"mil420\")", nil).
+prg("[\"mul\", &read] match(\"mulx20\")", nil).
 prg("n: nil, n else(10)", 10).
 prg("n: 42, n else(123)", 42).
 prg("[1,2,3] all?({$ > 0})", true).
@@ -923,6 +946,11 @@ prg("\"hello\" part(2,1)", [`he`,`el`,`ll`,`lo`]).
 prg("\"hello\" part(2)", [`he`,`ll`,`o`]).
 prg("[] part(666)", []).
 prg("\"4digit20here\" count(&digit)", 3).
+prg("[] empty?", true).
+prg("[1] empty?", false).
+prg("%{} empty?", true).
+prg("%{\"foo\": 42} empty?", false).
+prg("42 empty?", false).
 err("n: 5, \"x: 11, n* \" eval", err('Eval error, parsing failed: "~w"', _)).
 err("[1,2,3] scum", err('Method call failed: ~w/0', [scum])).
 err("[1,2,3] mab(&inc)", err('Method call failed: ~w/~w', [mab, 1])).
