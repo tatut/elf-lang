@@ -43,6 +43,7 @@ value(val(Ch)) --> "@", [Ch].
 value(val(true)) --> "true".
 value(val(false)) --> "false".
 value(val(nil)) --> "nil".
+value(val(regex(R))) --> "`", string_without("`", S), "`", { string_codes(Str, S), re_compile(Str, R, []) }.
 
 symbol_chf(Ch) --> [Ch], { code_type(Ch, alpha) }.
 symbol_chf(95) --> [95]. % _
@@ -88,7 +89,7 @@ more_record_fields(Fields) --> ws, ",", record_fields(Fields).
 
 map_new(map_new(Fields)) --> "%{", map_fields(Fields), "}".
 map_fields([]) --> ws.
-map_fields([F-V|Fields]) --> ws, value(F), ":", ws, exprt(V), more_map_fields(Fields).
+map_fields([F-V|Fields]) --> ws, exprt(F), ":", ws, exprt(V), more_map_fields(Fields).
 more_map_fields([]) --> ws.
 more_map_fields(Fields) --> ws, ",", map_fields(Fields).
 
@@ -165,9 +166,10 @@ walk(Item, Item).
 
 
 
-% Functions and method references are callable
+% Functions, method references and regexes are callable
 is_callable(fun(_,_)).
 is_callable(mref(_)).
+is_callable(regex(_)).
 
 %%%% Evaluator
 
@@ -249,33 +251,39 @@ eval_record_fields([Name-ValExpr|Fields], Record, R0, R) -->
     { record_set(R0, Name, Val, R1) },
     eval_record_fields(Fields, Record, R1, R).
 
-eval_op(+,L,R,V) :- V is L + R.
-eval_op(-,L,R,V) :- V is L - R.
-eval_op(*,L,R,V) :- V is L * R.
-eval_op(/,L,R,V) :- V is L / R.
-eval_op(>,L,R,false) :- L =< R.
-eval_op(>,L,R,true) :- L > R.
-eval_op(<,L,R,false) :- L >= R.
-eval_op(<,L,R,true) :- L < R.
-eval_op(<=,L,R,true) :- L =< R.
-eval_op(<=,L,R,false) :- L > R.
-eval_op(>=,L,R,true) :- L >= R.
-eval_op(>=,L,R,false) :- L < R.
-eval_op('%',L,R,V) :- V is L mod R.
-eval_op('=',X,X,true).
-eval_op('=',L,R,false) :- dif(L,R).
+eval_op_rl(Op, R, L, V) :- eval_op(Op, L, R, V).
+eval_op(Op, L, R, V) :- is_list(L), \+ is_list(R), maplist(eval_op_rl(Op,R), L, V), !.
+eval_op(Op, L, R, V) :- is_list(L), is_list(R), \+ Op = '++', maplist(eval_op(Op), L, R, V), !.
+eval_op(+,L,R,V) :- V is L + R, !.
+eval_op(-,L,R,V) :- V is L - R, !.
+eval_op(*,L,R,V) :- V is L * R, !.
+eval_op(/,L,R,V) :- V is L / R, !.
+eval_op(>,L,R,false) :- L =< R, !.
+eval_op(>,L,R,true) :- L > R, !.
+eval_op(<,L,R,false) :- L >= R, !.
+eval_op(<,L,R,true) :- L < R, !.
+eval_op(<=,L,R,true) :- L =< R, !.
+eval_op(<=,L,R,false) :- L > R, !.
+eval_op(>=,L,R,true) :- L >= R, !.
+eval_op(>=,L,R,false) :- L < R, !.
+eval_op('%',L,R,V) :- V is L mod R, !.
+eval_op('=',X,X,true) :- !.
+eval_op('=',L,R,false) :- dif(L,R), !.
 eval_op('++',L,R,Append) :- is_list(L), is_list(R), append(L,R,Append), !.
 % nil acts as empty list for append
 eval_op('++',nil,R,R) :- !.
 eval_op('++',L,nil,L) :- !.
-eval_op(and,true,true,true).
-eval_op(and,false,false,false).
-eval_op(and,true,false,false).
-eval_op(and,false,true,false).
-eval_op(or,true,true,true).
-eval_op(or,true,false,true).
-eval_op(or,false,true,true).
-eval_op(or,false,false,false).
+eval_op(and,true,true,true) :- !.
+eval_op(and,false,false,false) :- !.
+eval_op(and,true,false,false) :- !.
+eval_op(and,false,true,false) :- !.
+eval_op(and,L,R, true) :- \+ falsy(L), \+ falsy(R), !.
+eval_op(and,L,_, false) :- falsy(L), !.
+eval_op(and,_,R, false) :- falsy(R), !.
+eval_op(or,true,true,true) :- !.
+eval_op(or,true,false,true) :- !.
+eval_op(or,false,true,true) :- !.
+eval_op(or,false,false,false) :- !.
 
 eval_methods([], In, In) --> [].
 eval_methods([M|Methods], In , Out) -->
@@ -309,6 +317,15 @@ eval_call(mref(op(Op)), [[Left|Right]], Result) -->
 eval_call(mref(Name), [Me|Args], Result) -->
     { atom(Name) },
     method(Name, Me, Args, Result).
+
+eval_call(regex(R), [Lst], Result) -->
+    [],
+    { string_codes(Str, Lst),
+      re_matchsub(R, Str, Match)
+      -> (dict_pairs(Match, re_match, Vals),
+          sort(Vals, ValsSorted),
+          maplist([_-S,L]>>string_codes(S,L), ValsSorted, Result))
+      ; Result=nil }.
 
 bind_args([], _) --> []. % extra arguments, might be $ references, don't care
 bind_args([A|Args], []) --> [], { err('Too few arguments provided, missing: ~w', [[A|Args]]) }.
@@ -596,6 +613,8 @@ method(put, map(M), [Key, Val | KVs], R) :-
     map_put(map(M), Key, Val, map(M1)),
     method(put, map(M1), KVs, R), !.
 method(put, map(M), [], map(M)) :- !.
+method(keys, map(M), [], Ks) :-
+    map_keys(map(M), Ks), !.
 
 % Record fields act as getter
 method(Field, rec(Record,ID), [], Val) :- record_get(rec(Record,ID), Field, Val), !.
@@ -641,6 +660,11 @@ method('in?', Candidate, [Lst], Val) :-
     memberchk(Candidate, Lst) -> Val = true; Val = false.
 method('has?', Lst, [Candidate], Val) :-
     memberchk(Candidate, Lst) -> Val = true; Val = false.
+method(index, Lst, [Candidate], -1) :-
+    \+ memberchk(Candidate, Lst), !.
+method(index, Lst, [Candidate], Idx) :-
+    once(append([Before, [Candidate], _], Lst)),
+    length(Before, Idx).
 method(read, Lst, [], [Val, Rest]) :-
     phrase(value(val(Val)), Lst, Rest).
 method(else, Me, [Or], Val) :-
@@ -666,6 +690,13 @@ method('empty?', [], [], true) :- !.
 method('empty?', nil, [], true) :- !.
 method('empty?', map(M), [],  true) :- rb_new(M0), M0=M, !.
 method('empty?', _, [], false) :- !. % anything else is not
+method(pr, X, [], X) :-
+    prettyln(X), !.
+method(str, N, [], Str) :- number(N), atom_codes(N, Str), !.
+method(str, [], [], `[]`) :- !.
+method(str, [X], [], Str) :- method(str, X, [], XStr), append([`[`, XStr, `]`], Str), !.
+method(str, Lst, [], Str) :- is_list(Lst), maplist([X,S]>>method(str, X, [], S), Lst, Strs),
+                             join(`, `, Strs, Vals), append([`[`, Vals, `]`], Str).
 
 
 % for putting a breakpoint
@@ -753,6 +784,10 @@ Example:
 method(count/_, "count(Fn)\nCount the number of values in recipient where Fn returns truthy.").
 method('empty?'/0, "True if recipient is nil, the empty list or an empty map.").
 method('contents'/0, "Return contents of recipient file as string.").
+method(index/1, "index(Elt)\nReturns the first index of Elt in recipient list or -1 if it does not appear in the list.").
+method(pr/0, "Pretty print recipient. Returns recipient.").
+method(str/0, "Return readable representation of recipient as string.").
+
 falsy(nil).
 falsy(false).
 
@@ -951,6 +986,12 @@ prg("[1] empty?", false).
 prg("%{} empty?", true).
 prg("%{\"foo\": 42} empty?", false).
 prg("42 empty?", false).
+prg("[\"hat\", \"fat\", \"cat\"] keep(`(c|h)at`)", [[`hat`,`h`], [`cat`,`c`]]).
+prg("\"hello\" index(@l)", 2).
+prg("[42,100] index(666)", -1).
+prg("start: \"start\", %{start: 666, \"end\": 1234}, _ at(\"start\")", 666).
+prg("[42,100] str", `[42, 100]`).
+prg("666 str", `666`).
 err("n: 5, \"x: 11, n* \" eval", err('Eval error, parsing failed: "~w"', _)).
 err("[1,2,3] scum", err('Method call failed: ~w/0', [scum])).
 err("[1,2,3] mab(&inc)", err('Method call failed: ~w/~w', [mab, 1])).

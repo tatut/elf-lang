@@ -40,6 +40,7 @@ Comments start with `#` and end in newline.
 
 ```
 "I'm an Elf"  # a string obviously (actually a list of ascii code ints)
+`(c|h)at`     # a compiled regular expression
 
 @?            # the ´?´ character (as ascii integer 62)
 
@@ -112,7 +113,7 @@ Elf supports the following binary operators:
 - `and` boolean truth (true if both left and right hand sides are truthy, false otherwise)
 - `or` boolean or (true if either left or right hand side is truthy, false otherwise)
 
-# Records
+### Records
 
 Elf supports records which have a predefined list of fields.
 Records can be instantiated by `RecordName{field1Name: field1Val, ...}` any fields not given a value will have the initial value `nil`.
@@ -127,3 +128,10 @@ There is a special method called `dynamic` that will be invoked for any
 methods not defined. This can be used for meta-programming.
 The method gets the name of the undefined method as string and a list
 of its arguments.
+
+### Regular expressions
+
+Elf supports regular expressions that are read by using backticks.
+A regular expression is callable like a function and returns a list of
+strings (first one being the full match and then any capture groups)
+or `nil` if the input does not match the regex.

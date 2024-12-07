@@ -1,5 +1,5 @@
 % Formatted output
-:- module(elf_fmt, [fmt/3, pretty/1, prettyln/1, output/1, outputln/1]).
+:- module(elf_fmt, [fmt/3, pretty/1, prettyln/1, output/1, outputln/1, join/3]).
 :- use_module(elf_map).
 :- use_module(elf_record).
 :- use_module(library(yall)).
@@ -85,3 +85,9 @@ pad(0, Atom, [44,10|Pad]) :-
     length(Pad, L1),
     maplist(=(32), Pad), !.
 pad(_L, _, `, `) :- !.
+
+join(_, [], []) :- !.
+join(_, [X], X) :- !.
+join(Sep, [X|Rest], Result) :-
+    join(Sep, Rest, Res0),
+    append([X,Sep,Res0], Result).
