@@ -193,8 +193,6 @@ setenv(Name,Val) --> state(ctx(Env0,A,P), ctx(Env1,A,P)),
 getenv(Name,Val) --> state(ctx(Env,_,_)),
                      { (get_dict(Name, Env, Val), !); err('Name error: ~w', [Name]) }.
 
-fail_nil(X) :- dif(X, nil).
-
 eval([Expr|Methods], Out) --> eval(Expr, Val), eval_methods(Methods, Val, Out).
 eval(sub(Expr), Out) --> eval(Expr, Out).
 eval(sym(Sym), Val) --> getenv(Sym,Val).
@@ -251,9 +249,13 @@ eval_record_fields([Name-ValExpr|Fields], Record, R0, R) -->
     { record_set(R0, Name, Val, R1) },
     eval_record_fields(Fields, Record, R1, R).
 
+lift('++') :- !, fail.
+lift('=') :- !, fail.
+lift(_).
+
 eval_op_rl(Op, R, L, V) :- eval_op(Op, L, R, V).
-eval_op(Op, L, R, V) :- is_list(L), \+ is_list(R), maplist(eval_op_rl(Op,R), L, V), !.
-eval_op(Op, L, R, V) :- is_list(L), is_list(R), \+ Op = '++', maplist(eval_op(Op), L, R, V), !.
+eval_op(Op, L, R, V) :- lift(Op), is_list(L), \+ is_list(R), maplist(eval_op_rl(Op,R), L, V), !.
+eval_op(Op, L, R, V) :- lift(Op), is_list(L), is_list(R), maplist(eval_op(Op), L, R, V), !.
 eval_op(+,L,R,V) :- V is L + R, !.
 eval_op(-,L,R,V) :- V is L - R, !.
 eval_op(*,L,R,V) :- V is L * R, !.
