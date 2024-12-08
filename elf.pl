@@ -712,6 +712,8 @@ method(str, Lst, [], Str) :- is_list(Lst), maplist([X,S]>>method(str, X, [], S),
 method(allpairs, Lst, [], Pairs) :-
     findall([A,B], (select(A, Lst, Rest), member(B, Rest)), Pairs).
 method(sign, N, [], Sign) :- number(N), sign(N, Sign).
+method(numdigits, N, [], Digits) :- atom_length(N, Digits).
+method(pow, Num, [N], Res) :- Res is Num ^ N.
 % for putting a breakpoint
 debug.
 
@@ -802,6 +804,8 @@ method(pr/0, "Pretty print recipient. Returns recipient.").
 method(str/0, "Return readable representation of recipient as string.").
 method(allpairs/0, "Return all possible [A,B] lists where A and B are elements of recipient list.").
 method(sign/0, "Return -1, 0 or 1 if recipient is negative, zero or positive respectively.").
+method(numdigits/0, "Return the number of digits in a number, eg. 123 => 3").
+method(pow/1, "pow(N)\nRaise recipient to Nth power.").
 
 falsy(nil).
 falsy(false).
