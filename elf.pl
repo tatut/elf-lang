@@ -268,7 +268,7 @@ eval_op(>=,L,R,true) :- L >= R, !.
 eval_op(>=,L,R,false) :- L < R, !.
 eval_op('%',L,R,V) :- V is L mod R, !.
 eval_op('=',X,X,true) :- !.
-eval_op('=',L,R,false) :- dif(L,R), !.
+eval_op('=',_,_,false) :- !.
 eval_op('++',L,R,Append) :- is_list(L), is_list(R), append(L,R,Append), !.
 % nil acts as empty list for append
 eval_op('++',nil,R,R) :- !.
