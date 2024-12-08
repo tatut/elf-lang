@@ -516,7 +516,17 @@ method('%fold', [V|Vs], [Fn, Acc], Result) -->
     method('%fold', Vs, [Fn, Res0], Result).
 
 method(do, Lst, [Fn], Result) -->
+    { (is_list(Lst); Lst=nil), ! },
     foldfn(Lst, Fn, nil, nil, do_, '=', Result).
+method(do, map(M), [Fn], Result) -->
+    { map_pairs(map(M), KVs) },
+    method('%do', KVs, [Fn], Result).
+method('%do', [], _, nil) --> [].
+method('%do', [K-V|KVs], [Fn], nil) -->
+    eval_call(Fn, [K,V], _Result),
+    method('%do', KVs, [Fn], nil).
+
+
 
 method(filter, [], _, []) --> [].
 method(filter, [H|T], [Fn], Result) -->
@@ -697,8 +707,9 @@ method(str, [], [], `[]`) :- !.
 method(str, [X], [], Str) :- method(str, X, [], XStr), append([`[`, XStr, `]`], Str), !.
 method(str, Lst, [], Str) :- is_list(Lst), maplist([X,S]>>method(str, X, [], S), Lst, Strs),
                              join(`, `, Strs, Vals), append([`[`, Vals, `]`], Str).
-
-
+method(allpairs, Lst, [], Pairs) :-
+    findall([A,B], (select(A, Lst, Rest), member(B, Rest)), Pairs).
+method(sign, N, [], Sign) :- number(N), sign(N, Sign).
 % for putting a breakpoint
 debug.
 
@@ -712,7 +723,7 @@ method(mapcat/1,"mapcat(Fn)\nCall Fn on all values in recipient appending all re
 method(group/1,"group(Fn)\nGroup values in recipient by Fn. Calls Fn on each value in recipient and returns map with the result as key and list of values having that result as value.").
 method(print/0,"Print value to standard output.").
 method(digit/0,"Return ASCII digit code as number, or nil if code is not a digit.").
-method(do/1,"do(Fn)\nCall Fn on each value in recipient, presumably for side effects. Returns nil.").
+method(do/1,"do(Fn)\nCall Fn on each value in recipient, presumably for side effects. For maps, Fn is called with key and value as arguments. Returns nil.").
 method(sum/0,"Returns sum of all values in recipient.").
 method(filter/1,"filter(Fn)\nCall Fn on each value in recipient, return list of values where the result is truthy.").
 method(call/_,"Call recipient function with given arguments.").
@@ -787,6 +798,8 @@ method('contents'/0, "Return contents of recipient file as string.").
 method(index/1, "index(Elt)\nReturns the first index of Elt in recipient list or -1 if it does not appear in the list.").
 method(pr/0, "Pretty print recipient. Returns recipient.").
 method(str/0, "Return readable representation of recipient as string.").
+method(allpairs/0, "Return all possible [A,B] lists where A and B are elements of recipient list.").
+method(sign/0, "Return -1, 0 or 1 if recipient is negative, zero or positive respectively.").
 
 falsy(nil).
 falsy(false).
