@@ -190,6 +190,7 @@ setprev(P) --> state(ctx(E,A,_), ctx(E,A,P)).
 setargs(A) --> state(ctx(E,_,P), ctx(E,A,P)).
 setenv(Name,Val) --> state(ctx(Env0,A,P), ctx(Env1,A,P)),
                      { put_dict(Name, Env0, Val, Env1) }.
+getenv(Name,record_ref(Name)) --> [], { once(record_field(Name,_,_)), ! }.
 getenv(Name,Val) --> state(ctx(Env,_,_)),
                      { (get_dict(Name, Env, Val), !); err('Name error: ~w', [Name]) }.
 
@@ -714,6 +715,14 @@ method(allpairs, Lst, [], Pairs) :-
 method(sign, N, [], Sign) :- number(N), sign(N, Sign).
 method(numdigits, N, [], Digits) :- atom_length(N, Digits).
 method(pow, Num, [N], Res) :- Res is Num ^ N.
+method('is?', rec(T,_), [record_ref(T)], true) :- !.
+method('is?', _, _, false) :- !.
+method('as-list', map(M), [], Result) :-
+    map_pairs(map(M), Pairs),
+    maplist([K-V,[K,V]]>>true, Pairs, Result).
+method('as-map', Lst, [], map(M)) :-
+    maplist([[K,V],K-V]>>true, Lst, Pairs),
+    map_pairs(map(M), Pairs).
 % for putting a breakpoint
 debug.
 
@@ -806,6 +815,9 @@ method(allpairs/0, "Return all possible [A,B] lists where A and B are elements o
 method(sign/0, "Return -1, 0 or 1 if recipient is negative, zero or positive respectively.").
 method(numdigits/0, "Return the number of digits in a number, eg. 123 => 3").
 method(pow/1, "pow(N)\nRaise recipient to Nth power.").
+method('is?'/1, "is?(RecordType)\nTrue iff recipient is an instance of RecordType.").
+method('as-list'/0, "Return recipient map as list of [k,v] entries.").
+method('as-map'/1, "Return recipient list of [k,v] entries as a map.").
 
 falsy(nil).
 falsy(false).
@@ -1011,6 +1023,10 @@ prg("[42,100] index(666)", -1).
 prg("start: \"start\", %{start: 666, \"end\": 1234}, _ at(\"start\")", 666).
 prg("[42,100] str", `[42, 100]`).
 prg("666 str", `666`).
+prg("Foo{a,b}, Foo{a:2} is?(Foo)", true).
+prg("Foo{a,b}, 42 is?(Foo)", false).
+prg("%{\"foo\": 42} as-list", [[`foo`,42]]).
+prg("[[\"foo\", 42], [\"bar\", 666]] as-map at(\"bar\")", 666).
 err("n: 5, \"x: 11, n* \" eval", err('Eval error, parsing failed: "~w"', _)).
 err("[1,2,3] scum", err('Method call failed: ~w/0', [scum])).
 err("[1,2,3] mab(&inc)", err('Method call failed: ~w/~w', [mab, 1])).
