@@ -180,6 +180,19 @@ is_callable(regex(_)).
 % and Args is the current list of arguments to fn call
 % Prev is the previous result referred to by _
 
+builtin_class('List').
+builtin_class('Number').
+builtin_class('Nil').
+builtin_class('Boolean').
+
+class(rec(C,_), C) :- !.
+class(nil, 'Nil') :- !.
+class(false, 'Boolean') :- !.
+class(true, 'Boolean') :- !.
+class(X, 'List') :- is_list(X), !.
+class(X, 'Number') :- number(X), !.
+
+
 % DCG state
 state(S), [S] --> [S].
 state(S0, S), [S] --> [S0].
@@ -204,9 +217,9 @@ eval(assign(Name, Expr), Val) -->
 
 % Assign new method to record
 eval(assign(At, [Path], Expr), Val) -->
-    { once(record_field(At,_,_)) },
+    { once((record_field(At,_,_);builtin_class(At))) },
     eval(Expr, Val),
-    { asserta(record_method(At, Path, Val)) }.
+    { asserta(record_method(Path, At, Val)) }.
 
 eval(val(V), V) --> [].
 eval(list([]), []) --> [].
@@ -580,9 +593,10 @@ method('%match', Specs, [R|Rest], Out) -->
         ; append([R], Result, Out)) }.
 
 
-method(Name, rec(Record,ID), Args, Result) -->
-    { get_record_method(Record, Name, Fun, Args, Args1) },
-    eval_call_my(Fun, rec(Record,ID), Args1, Result).
+method(Name, My, Args, Result) -->
+    { class(My, C),
+      get_record_method(C, Name, Fun, Args, Args1) },
+    eval_call_my(Fun, My, Args1, Result).
 
 
 % Any pure Prolog method, that doesn't need DCG evaluation context
@@ -1036,6 +1050,8 @@ prg("Foo{a,b}, Foo{a:2} is?(Foo)", true).
 prg("Foo{a,b}, 42 is?(Foo)", false).
 prg("%{\"foo\": 42} as-list", [[`foo`,42]]).
 prg("[[\"foo\", 42], [\"bar\", 666]] as-map at(\"bar\")", 666).
+prg("Number.sq: {my * my}, 42 sq", 1764).
+prg("List.frob: {my drop(1) ++ [my _0]}, \"Hello\" frob frob", `lloHe`).
 err("n: 5, \"x: 11, n* \" eval", err('Eval error, parsing failed: "~w"', _)).
 err("[1,2,3] scum", err('Method call failed: ~w/0', [scum])).
 err("[1,2,3] mab(&inc)", err('Method call failed: ~w/~w', [mab, 1])).

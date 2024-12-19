@@ -9,7 +9,7 @@
 % Fields also act as 0 arg methods that return the value
 :- dynamic record_field/3.
 
-% Record method definition: record_method(RecordName, MethodName, fun(...))
+% Record method definition: record_method(MethodName, ClassOrRecord, fun(...))
 :- dynamic record_method/3.
 
 % Record fields are stored in record_data(RecordInstanceId, Field, Val)
@@ -35,10 +35,10 @@ get_record_method(Record, Name, Fun, Args0, Args1) :-
     once(get_record_method_(Record, Name, Fun, Args0, Args1)).
 
 get_record_method_(Record, Name, Fun, Args, Args) :-
-    record_method(Record, Name, Fun).
+    record_method(Name, Record, Fun).
 
 get_record_method_(Record, Name, Fun, Args, [NameStr, Args]) :-
-    record_method(Record, dynamic, Fun),
+    record_method(dynamic, Record, Fun),
     atom_codes(Name, NameStr).
 
 % Clear any stored record defs and data when program ends
