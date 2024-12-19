@@ -1,13 +1,17 @@
 :- module(elf_map, [map_new/1, map_put/4, map_get/3, map_pairs/2,
-                    map_keys/2,
+                    map_keys/2, map_del/3,
                     map_size/2]).
 :- use_module(library(rbtrees)).
+:- use_module(library(yall)).
 
 map_new(map(M)) :- rb_new(M).
 
 map_put(map(M0), Key, Val, map(M1)) :- rb_insert(M0, Key, Val, M1), !.
 
 map_get(map(M), Key, Val) :- rb_lookup(Key, Val, M) -> true; Val=nil.
+
+map_del(map(M0), Keys, map(M1)) :-
+    foldl([K,MIn,MOut]>>rb_delete(MIn,K,MOut), Keys, M0, M1).
 
 map_pairs(map(M), Pairs) :-
     ground(Pairs),

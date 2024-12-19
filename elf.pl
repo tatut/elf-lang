@@ -10,7 +10,7 @@
 :- use_module(elf_ref).
 :- set_prolog_flag(double_quotes, codes).
 :- set_prolog_flag(elf_use_fetch, false).
-%:- set_prolog_flag(stack_limit, 2_147_483_648).
+:- set_prolog_flag(stack_limit, 2_147_483_648).
 
 %:- det(method/4).
 
@@ -622,10 +622,17 @@ method(len, [], [], 0) :- !.
 method(len, [L|Lst], [], Result) :- length([L|Lst], Result), !.
 method(len, map(M), [], Result) :- map_size(map(M), Result), !.
 method(at, map(M), [Key], Result) :- map_get(map(M), Key, Result), !.
+method(at, map(M), [Key, Default], Result) :-
+    map_get(map(M), Key, Val),
+    (Val = nil
+    -> Result = Default
+    ; Result = Val).
 method(put, map(M), [Key, Val | KVs], R) :-
     map_put(map(M), Key, Val, map(M1)),
     method(put, map(M1), KVs, R), !.
 method(put, map(M), [], map(M)) :- !.
+method(del, map(M), Keys, map(M1)) :-
+    map_del(map(M), Keys, map(M1)), !.
 method(keys, map(M), [], Ks) :-
     map_keys(map(M), Ks), !.
 
@@ -665,6 +672,7 @@ method(debug, X, [], X) :- debug, !.
 method('_0', [N|_], [], N).
 method('_1', [_,N|_], [], N).
 method('_2', [_,_,N|_], [], N).
+method('_3', [_,_,_,N|_], [], N).
 method('nil?', V, _, B) :- (V=nil -> B=true; B=false).
 method(ref, V, [], Ref) :- ref_new(Ref, V).
 method(val, ref(ID), [], Val) :- ref_get(ref(ID), Val).
@@ -779,6 +787,7 @@ method(debug/0,"Print internal interpreter state.").
 method('_0'/0,"Return 1st value of recipient."). % first
 method('_1'/0,"Return 2nd value of recipient."). % second
 method('_2'/0,"Return 3rd value of recipient."). % third
+method('_3'/0,"Return 3rd value of recipient."). % fourth
 method(sort/1,"sort(Fn)\nCall Fn on each value in recipient, return recipient sorted by the return values.").
 method(minw/1,"minw(Fn)\nCall Fn on each value in recipient, return list containing the smallest result and the value it corresponds with.").
 method(maxw/1,"maxw(Fn)\nCall Fn on each value in recipient, return list containing the largest result and the value it corresponds with.").
