@@ -4,42 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "elf.h"
-
-typedef enum TokenType {
-  LITERAL,
-  IDENTIFIER,
-  NAMEREF,
-  MULTIPLY, DIVIDE, ADD, SUBTRACT, MODULO,
-  COMMA,
-  PAREN_OPEN, PAREN_CLOSE, // '(' ')'
-  BRACKET_OPEN, BRACKET_CLOSE, // '[' ']'
-  BRACE_OPEN, BRACE_CLOSE, // '{' '}'
-  BAR, // '|' vertical bar
-  DICT_OPEN, // "%{" special syntax for dictionary
-  ASSIGN, // ':'
-  LESSER_THAN, LESSER_THAN_EQUAL, // '<' "<="
-  GREATER_THAN, GREATER_THAN_EQUAL, // '>' ">="
-  EQUAL, // '='
-  EOS,
-  ERROR
-} TokenType;
-
-typedef union TokenData {
-  ElfVal val;
-  char ch;
-  char *name;
-} TokenData;
-
-typedef struct Token {
-  TokenType type;
-  size_t line, column;
-  TokenData data; // data associated with token
-} Token;
-
-typedef struct Scanner {
-  char *source, *at;
-  size_t line, column;
-} Scanner;
+#include "elf_scanner.h"
 
 #define next(s) { s->at++; s->column++; }
 #define cur(s) *s->at
@@ -149,6 +114,40 @@ Token number(Scanner *s) {
   return (Token) { ERROR }; // FIXME
 }
 
+/**
+ * Read string in as list of integers.
+ * Allocates cons cells for each item.
+ * If the string is empty, returns the empty list marker value (without allocating anything).
+ */
+Token string(Scanner *s, size_t line, size_t col) {
+  // String is actually a list of integers
+  ElfVal val;
+  ElfCons *head = NULL;
+  val.type = TYPE_EMPTY_LIST;
+
+  next(s); // skip first '"'
+  while(cur(s) != '"') {
+    long ch = cur(s);
+    if(head == NULL) {
+      // no head yet, make it and change type to non-empty list
+      val.type = TYPE_LIST;
+      head = alloc_cons();
+      val.data.ptrVal = head;
+      head->value.type = TYPE_INT;
+      head->value.data.longVal = ch;
+    } else {
+      head->next = alloc_cons();
+      head->next->value.type = TYPE_INT;
+      head->next->value.data.longVal = ch;
+
+      head = head->next;
+    }
+    next(s);
+  }
+
+  return literal(line, col, val);
+
+}
 /* Return next token from scanner,
    Modifies scanner state. */
 Token scan(Scanner *s) {
@@ -182,7 +181,13 @@ Token scan(Scanner *s) {
       // binary operators
     case '*': next(s); return (Token) { MULTIPLY, line, col };
     case '/': next(s); return (Token) { DIVIDE, line, col };
-    case '+': next(s); return (Token) { ADD, line, col };
+    case '+':
+      next(s);
+      if(nextch == '+') {
+        next(s);
+        return (Token) { CONCAT, line, col };
+      }
+      return (Token) { ADD, line, col };
     case '-':
       if(is_digit(nextch))
         return number(s);
@@ -225,6 +230,9 @@ Token scan(Scanner *s) {
         return identifier(s);
       }
 
+      // literal string
+    case '"': return string(s, line, col);
+
       // numbers and identifiers
     default:
       if(is_identifier_start(ch)) {
@@ -234,6 +242,25 @@ Token scan(Scanner *s) {
       }
       return (Token){ ERROR };
     }
+  }
+}
+
+Scanner *scanner_new(char *input) {
+  Scanner *s = malloc(sizeof(Scanner));
+  s->at = input;
+  s->line = 1;
+  s->column = 1;
+  s->source = input;
+  return s;
+}
+
+void scanner_free(Scanner *s) { free(s); }
+
+void token_free(Token t) {
+  // do nothing now, we should intern names
+  if(t.type == LITERAL && t.data.val.type == TYPE_LIST) {
+    // PENDING: should the interpreter take ownership? so we don't free this
+
   }
 }
 
@@ -311,6 +338,10 @@ void test() {
           nexttok();
           assert(t.type == IDENTIFIER && strcmp("foo", t.data.name)==0);
         });
+      it("reads concat", {
+          tok("++");
+          assert(t.type == CONCAT);
+        });
     });
 
   testing("Comparison operators", {
@@ -345,6 +376,26 @@ void test() {
           assert(t.type == BRACE_CLOSE); nexttok();
           assert(t.type == PAREN_CLOSE); nexttok();
           assert(t.type == EOS);
+        });
+    });
+
+  testing("strings", {
+      it("reads the empty string", {
+          tok("\"\"");
+          assert(t.type == LITERAL && t.data.val.type == TYPE_EMPTY_LIST);
+        });
+      it("reads string", {
+          tok("\"hello\nworld!\"");
+          assert(t.type == LITERAL && t.data.val.type == TYPE_LIST);
+          ElfCons *head = t.data.val.data.ptrVal;
+          size_t len = 1;
+          assert(head->value.type == TYPE_INT && head->value.data.longVal == 'h');
+          while(head->next != NULL) {
+            head = head->next;
+            len++;
+          }
+          assert(len == 12);
+          assert(head->value.type == TYPE_INT && head->value.data.longVal == '!');
         });
     });
 }

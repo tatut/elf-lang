@@ -1,3 +1,6 @@
+#ifndef ELF_H
+#define ELF_H
+
 #include <_types/_uint16_t.h>
 #include <_types/_uint8_t.h>
 #include <stddef.h>
@@ -48,7 +51,8 @@ typedef struct ElfBytes {
 #define TYPE_DOUBLE 4 // signed 64bit float, immediate
 #define TYPE_FLAGS 5  // 64 booleans in a single bitmask, immediate
 #define TYPE_LIST 6  // a cons cell, *data is ElfCons
-#define TYPE_ARRAY 7 // array, *data is ElfArray
+#define TYPE_EMPTY_LIST 7 // marker for empty list, has no data allocated
+#define TYPE_ARRAY 8 // array, *data is ElfArray
 #define TYPE_BYTES1 50 // bytestring of size 1
 #define TYPE_BYTES2 51 // bytestring of size 2
 #define TYPE_BYTES3 52 // bytestring of size 3
@@ -84,3 +88,8 @@ typedef struct ElfBytes {
 #define set_double_val(v, d) (((ElfVal *)v)->data.doubleVal = d)
 #define set_bytes_val(v, b) (((ElfVal *)v)->data.bytesVal = b)
 #define set_ptr_val(v, p) (((ElfVal *)v)->data.ptrVal = p)
+
+#define alloc_val() malloc(sizeof(ElfVal))
+#define alloc_cons() malloc(sizeof(ElfCons))
+
+#endif
