@@ -9,7 +9,18 @@ typedef enum TokenType {
   LITERAL,
   IDENTIFIER,
   NAMEREF,
-  BINARY,
+  MULTIPLY, DIVIDE, ADD, SUBTRACT, MODULO,
+  COMMA,
+  PAREN_OPEN, PAREN_CLOSE, // '(' ')'
+  BRACKET_OPEN, BRACKET_CLOSE, // '[' ']'
+  BRACE_OPEN, BRACE_CLOSE, // '{' '}'
+  BAR, // '|' vertical bar
+  DICT_OPEN, // "%{" special syntax for dictionary
+  ASSIGN, // ':'
+  LESSER_THAN, LESSER_THAN_EQUAL, // '<' "<="
+  GREATER_THAN, GREATER_THAN_EQUAL, // '>' ">="
+  EQUAL, // '='
+  EOS,
   ERROR
 } TokenType;
 
@@ -144,11 +155,53 @@ Token scan(Scanner *s) {
   for(;;) {
     size_t line = s->line, col = s->column;
     char ch = *s->at;
+    char nextch = *(s->at+1);
+    TokenType c;
     switch(ch) {
+      // single char tokens
+    case '[': next(s); return (Token) { BRACKET_OPEN, line, col };
+    case ']': next(s); return (Token) { BRACKET_CLOSE, line, col };
+    case '(': next(s); return (Token) { PAREN_OPEN, line, col };
+    case ')': next(s); return (Token) { PAREN_CLOSE, line, col };
+    case '{': next(s); return (Token) { BRACE_OPEN, line, col };
+    case '}': next(s); return (Token) { BRACE_CLOSE, line, col };
+    case ':': next(s); return (Token) { ASSIGN, line, col };
+    case '|': next(s); return (Token) { BAR, line, col };
+    case '=': next(s); return (Token) { EQUAL, line, col };
+    case ',': next(s); return (Token) { COMMA, line, col };
+
+      // comments and whitespace skips
     case '#': skip_comment(s); break;
     case '\n': s->at++; s->line++; s->column = 1; break;
-    case ' ': case '\r': case '\t':
-      s->at++; s->column++; break;
+    case ' ': case '\r': case '\t': next(s); break;
+
+      // binary operators
+    case '*': next(s); return (Token) { MULTIPLY, line, col };
+    case '/': next(s); return (Token) { DIVIDE, line, col };
+    case '+': next(s); return (Token) { ADD, line, col };
+    case '-':
+      if(is_digit(nextch))
+        return number(s);
+      else {
+        next(s);
+        return (Token) { SUBTRACT, line, col };
+      }
+    case '%':
+      next(s);
+      if(nextch == '{') {
+        next(s);
+        return (Token) { DICT_OPEN, line, col };
+      }
+      else {
+        return (Token) { MODULO, line, col };
+      }
+    case '<': case '>': // comparison
+      c = (ch == '<' ? LESSER_THAN : GREATER_THAN);
+      next(s);
+      if(nextch == '=') { next(s); c++; } // increment to OR EQUAL variant
+      return (Token) { c, line, col };
+
+      // reserved words (true, false, nil)
     case 't':
       if(looking_at_word(s, "true")) {
         return literal(line, col, ELF_TRUE);
@@ -168,10 +221,11 @@ Token scan(Scanner *s) {
         return identifier(s);
       }
 
+      // numbers and identifiers
     default:
       if(is_identifier_start(ch)) {
         return identifier(s);
-      } else if(is_digit(ch) || ch == '-') {
+      } else if(is_digit(ch)) {
         return number(s);
       }
       return (Token){ ERROR };
@@ -186,60 +240,91 @@ Token scan(Scanner *s) {
 
 Scanner s_(char *source) { return (Scanner){source, source, 1, 1}; }
 
+#define tok(str)                                                            \
+  {                                                                            \
+    s = s_(str);                                                               \
+    t = scan(&s);                                                              \
+  }
+
+#define nexttok()                                                              \
+  { t = scan(&s); }
+
 void test() {
   Scanner s;
   Token t;
   printf("sizeof elfdata: %ld\nsizeof token: %ld\n", sizeof(ElfVal), sizeof(Token));
   testing("Booleans", {
-      it("reads true", {
-          s = s_("true");
-          t = scan(&s);
+      it("reads true", { tok("true");
           assert(t.type == LITERAL && is_true( &t.data ));
         });
-      it("reads false", { s = s_("false");
-          t = scan(&s);
+      it("reads false", { tok("false");
           assert(t.type == LITERAL && is_false( &t.data ));
         });
-      it("doesn't read too long", { s = s_("trueness");
-          t = scan(&s);
+      it("doesn't read too long", { tok("trueness");
           assert(t.type == IDENTIFIER &&
                  strcmp(t.data.name, "trueness")==0)
             });
-      it("skip ws", { s = s_("\n\n   true");
-          t = scan(&s);
+      it("skip ws", { tok("\n\n   true");
           assert(t.line == 3 && t.column == 4 && is_true(&t.data))
             });
-      it("skips comment", { s = s_("# true true, so true\n  false");
-          t = scan(&s);
+      it("skips comment", { tok("# true true, so true\n  false");
           assert(t.line == 2 && t.column == 3 && is_false(&t.data));
         });
     });
 
   testing("Numbers", {
       it("reads positive number", {
-          s = s_("  42069 ");
-          t = scan(&s);
+          tok("  42069 ");
           assert(t.type == LITERAL && is_type(&t.data, TYPE_INT) &&
                  long_val(&t.data) == 42069)
             });
       it("reads negative number", {
-          s = s_("# very cold temp\n-273");
-          t = scan(&s);
+          tok("# very cold temp\n-273");
           assert(t.type == LITERAL && is_type(&t.data, TYPE_INT) &&
                  long_val(&t.data) == -273)
             });
       it("reads float number", {
-          s = s_("420.69");
-          t = scan(&s);
+          tok("420.69");
           assert(t.type == LITERAL && is_type(&t.data, TYPE_DOUBLE) &&
                  double_val(&t.data) == 420.69);
         });
 
       it("reads negative float", {
-          s = s_("-3.1415666");
-          t = scan(&s);
+          tok("-3.1415666");
           assert(t.type == LITERAL && is_type(&t.data, TYPE_DOUBLE) &&
                  double_val(&t.data) == -3.1415666);
+        });
+    });
+
+  testing("Binary operators", {
+      it("reads *", {
+          tok("   * ");
+          assert(t.type == MULTIPLY);
+        });
+      it("doesn't confuse - with negative number", {
+          tok(" -foo");
+          assert(t.type == SUBTRACT);
+          nexttok();
+          assert(t.type == IDENTIFIER && strcmp("foo", t.data.name)==0);
+        });
+    });
+
+  testing("Comparison operators", {
+      it("reads < and <=", {
+          tok("< <=");
+          assert(t.type == LESSER_THAN);
+          nexttok();
+          assert(t.type == LESSER_THAN_EQUAL);
+        });
+      it("reads > and >=", {
+          tok("> >=");
+          assert(t.type == GREATER_THAN);
+          nexttok();
+          assert(t.type == GREATER_THAN_EQUAL);
+        });
+      it("reads =", {
+          tok("=");
+          assert(t.type == EQUAL);
         });
     });
 }

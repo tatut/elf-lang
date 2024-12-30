@@ -12,14 +12,15 @@ size_t test_failure=0;
 
 #define it(name, body) \
   printf("  %s", name); \
-  body
+  { body } \
+  printf("\n");
 
 #define assert(body)                                                           \
   if ((body)) {                                                                \
-    printf(" [OK]\n");                                                         \
+    printf(" [OK] ");                                                          \
     test_success++;                                                            \
   } else {                                                                     \
-    printf(" [FAIL]\n");                                                       \
+    printf(" [FAIL] ");                                                        \
     test_failure++;                                                            \
   }
 
@@ -29,7 +30,7 @@ void test();
 
 void run_tests() {
   test();
-  printf("Success: %ld\nFail: %ld\n", test_success, test_failure);
+  printf("\nSuccess: %ld\nFail: %ld\n", test_success, test_failure);
 }
 
 int main(int argc, char **argv){

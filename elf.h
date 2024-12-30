@@ -57,7 +57,7 @@ typedef struct ElfBytes {
 #define TYPE_BYTES6 55 // bytestring of size 6
 #define TYPE_BYTES7 56 // bytestring of size 7
 #define TYPE_BYTES8 57 // bytestring of size 8
-#define TYPE_BYTES 58  // bytestring of arbitrary (pointer to ElfBytes)
+#define TYPE_BYTES 58  // bytestring of arbitrary size (pointer to ElfBytes)
 
 // PENDING: could define fixed point numbers, with 1-6 decimals
 // eg. TYPE_FIX1 means signed 64bit number with 1 decimal (eg. -4205 means
