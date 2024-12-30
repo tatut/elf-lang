@@ -17,10 +17,10 @@ size_t test_failure=0;
 
 #define assert(body)                                                           \
   if ((body)) {                                                                \
-    printf(" [OK] ");                                                          \
+    printf(" [OK]");                                                          \
     test_success++;                                                            \
   } else {                                                                     \
-    printf(" [FAIL] ");                                                        \
+    printf(" [FAIL]");                                                        \
     test_failure++;                                                            \
   }
 

@@ -158,6 +158,10 @@ Token scan(Scanner *s) {
     char nextch = *(s->at+1);
     TokenType c;
     switch(ch) {
+      // end reached
+    case 0: case -1:
+      return (Token) { EOS, line, col };
+
       // single char tokens
     case '[': next(s); return (Token) { BRACKET_OPEN, line, col };
     case ']': next(s); return (Token) { BRACKET_CLOSE, line, col };
@@ -325,6 +329,22 @@ void test() {
       it("reads =", {
           tok("=");
           assert(t.type == EQUAL);
+        });
+    });
+
+  testing("parens, braces, brackets, bar, comma and assign", {
+      it("reads ({[|,:]})", {
+          tok("({[|,:]})");
+          assert(t.type == PAREN_OPEN); nexttok();
+          assert(t.type == BRACE_OPEN); nexttok();
+          assert(t.type == BRACKET_OPEN); nexttok();
+          assert(t.type == BAR); nexttok();
+          assert(t.type == COMMA); nexttok();
+          assert(t.type == ASSIGN); nexttok();
+          assert(t.type == BRACKET_CLOSE); nexttok();
+          assert(t.type == BRACE_CLOSE); nexttok();
+          assert(t.type == PAREN_CLOSE); nexttok();
+          assert(t.type == EOS);
         });
     });
 }
